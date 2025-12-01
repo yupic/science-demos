@@ -837,6 +837,7 @@ function drawTimeSeries() {
     const pos = Math.floor((y - ALLELE_MARGIN) / ALLELE_LINE_THICKNESS);
     if (pos >= 0 && pos < GENOME_LENGTH) {
       selectedAllelePos = pos;
+      drawAlleleFrequencies(population);
       showAlleleInfo(pos);
     } else {
       showAlleleInfo(-1);
