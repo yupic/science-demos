@@ -216,7 +216,7 @@ License: MIT
 
     <div class="card allele-card">
       <div class="card-title">Распределение аллелей (позиции 0–99)</div>
-      <canvas id="alleleCanvas" class="allele-canvas" width="220" height="520"></canvas>
+      <canvas id="alleleCanvas" class="allele-canvas" width="220" height="520" tabindex="0" aria-label="Распределение аллелей"></canvas>
       <div class="note">Каждая строка — позиция генома; цвета показывают долю A/C/G/T. Кликните на строку, чтобы увидеть подробности.</div>
       <div class="allele-info" id="alleleInfo">Загружаем данные...</div>
     </div>
@@ -701,6 +701,14 @@ function drawTimeSeries() {
   const mutRateInput = document.getElementById('mutRateInput');
   const alleleInfo = document.getElementById('alleleInfo');
 
+  const clampAllelePos = (pos) => Math.min(Math.max(pos, 0), GENOME_LENGTH - 1);
+
+  function selectAllele(pos) {
+    selectedAllelePos = clampAllelePos(pos);
+    drawAlleleFrequencies(population);
+    showAlleleInfo(selectedAllelePos);
+  }
+
   function showAlleleInfo(pos) {
     if (!lastAlleleFreqs || lastAlleleFreqs.length === 0) {
       alleleInfo.textContent = 'Нажмите на строку, чтобы увидеть вклад букв для позиции.';
@@ -836,11 +844,18 @@ function drawTimeSeries() {
     const y = (evt.clientY - rect.top) * scaleY;
     const pos = Math.floor((y - ALLELE_MARGIN) / ALLELE_LINE_THICKNESS);
     if (pos >= 0 && pos < GENOME_LENGTH) {
-      selectedAllelePos = pos;
-      drawAlleleFrequencies(population);
-      showAlleleInfo(pos);
+      selectAllele(pos);
+      alleleCanvas.focus({ preventScroll: true });
     } else {
       showAlleleInfo(-1);
+    }
+  });
+
+  alleleCanvas.addEventListener('keydown', (evt) => {
+    if (evt.key === 'ArrowUp' || evt.key === 'ArrowDown') {
+      evt.preventDefault();
+      const delta = evt.key === 'ArrowUp' ? -1 : 1;
+      selectAllele(selectedAllelePos + delta);
     }
   });
 
