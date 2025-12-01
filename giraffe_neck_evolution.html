@@ -384,10 +384,11 @@ function computeFitness(neck) {
   const histCanvas = document.getElementById('histCanvas');
   const histCtx = histCanvas.getContext('2d');
 
-  function drawHistogram(pop) {
-    const ctx = histCtx;
-    const w = histCanvas.width;
-    const h = histCanvas.height;
+function drawHistogram(pop) {
+  const ctx = histCtx;
+  const rect = histCanvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
     ctx.clearRect(0, 0, w, h);
 
     const margin = { left: 40, right: 10, top: 10, bottom: 30 };
@@ -462,8 +463,9 @@ function computeFitness(neck) {
 
 function drawTimeSeries() {
   const ctx = timeCtx;
-  const w = timeCanvas.width;
-  const h = timeCanvas.height;
+  const rect = timeCanvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
   ctx.clearRect(0, 0, w, h);
 
   if (history.length === 0) return;
@@ -527,7 +529,9 @@ function drawTimeSeries() {
   ctx.fill();
 
   ctx.font = '12px system-ui';
-  ctx.fillText(last.mean.toFixed(1), lastX - 5, lastY - 20);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(last.mean.toFixed(1), lastX, lastY - 20);
 
   // Ось X (поколения)
   ctx.strokeStyle = '#000';
@@ -655,17 +659,18 @@ function drawTimeSeries() {
       if (rect.width > 0) {
         const ratio = window.devicePixelRatio || 1;
         canvas.width = rect.width * ratio;
-        canvas.height = canvas.height;
+        canvas.height = rect.height * ratio;
         const ctx = canvas.getContext('2d');
         ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       }
     });
     updateUI();
   }
-  // window.addEventListener('resize', resizeCanvases);
+  window.addEventListener('resize', resizeCanvases);
 
   // Старт
   initSimulation();
+  resizeCanvases();
 })();
 </script>
 </body>
