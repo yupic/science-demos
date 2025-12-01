@@ -31,7 +31,6 @@ License: MIT
       color: var(--fg);
     }
     .container {
-      max-width: 960px;
       margin: 0 auto;
       padding: 16px;
     }
@@ -91,9 +90,9 @@ License: MIT
       margin-bottom: 6px;
     }
     canvas {
-      width: 100%;
-      max-width: 100%;
       display: block;
+      width: auto;
+      max-width: 100%;
       border: 1px solid var(--border);
       border-radius: 4px;
       background: #fff;
@@ -113,6 +112,54 @@ License: MIT
       width: 72px;
       padding: 4px 6px;
       font-size: 13px;
+    }
+    .charts-layout {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .charts-column {
+      flex: 0 0 auto;
+      width: fit-content;
+      max-width: 100%;
+    }
+    .allele-card {
+      width: 240px;
+      flex-shrink: 0;
+    }
+    .allele-canvas {
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+    }
+    .allele-legend-swatch {
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .allele-info {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--fg);
+      line-height: 1.4;
+    }
+    .allele-info-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .allele-info-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+      color: var(--muted);
+    }
+    .allele-info-row:last-child {
+      margin-bottom: 0;
     }
     @media (max-width: 600px) {
       h1 { font-size: 20px; }
@@ -149,18 +196,29 @@ License: MIT
     &nbsp;|&nbsp; оптимум: <span class="value">200</span> см
   </div>
 
-  <div class="card">
-    <div class="card-title">Распределение длины шеи в текущем поколении</div>
-    <canvas id="histCanvas" width="900" height="260"></canvas>
-    <div class="note">Показан гистограммой текущий колокол длин шеи (см).</div>
-  </div>
+  <div class="charts-layout">
+    <div class="charts-column">
+      <div class="card">
+        <div class="card-title">Распределение длины шеи в текущем поколении</div>
+        <canvas id="histCanvas" width="900" height="260"></canvas>
+        <div class="note">Показан гистограммой текущий колокол длин шеи (см).</div>
+      </div>
 
-  <div class="card">
-    <div class="card-title">Динамика средней длины шеи</div>
-    <canvas id="timeCanvas" width="900" height="220"></canvas>
-    <div class="note">
-      Линия — средняя длина шеи по поколениям. Пунктир — оптимум 200&nbsp;см.  
-      Чем ближе к нему, тем выше приспособленность.
+      <div class="card">
+        <div class="card-title">Динамика средней длины шеи</div>
+        <canvas id="timeCanvas" width="900" height="220"></canvas>
+        <div class="note">
+          Линия — средняя длина шеи по поколениям. Пунктир — оптимум 200&nbsp;см.
+          Чем ближе к нему, тем выше приспособленность.
+        </div>
+      </div>
+    </div>
+
+    <div class="card allele-card">
+      <div class="card-title">Распределение аллелей (позиции 0–99)</div>
+      <canvas id="alleleCanvas" class="allele-canvas" width="220" height="520"></canvas>
+      <div class="note">Каждая строка — позиция генома; цвета показывают долю A/C/G/T. Кликните на строку, чтобы увидеть подробности.</div>
+      <div class="allele-info" id="alleleInfo">Загружаем данные...</div>
     </div>
   </div>
 </div>
@@ -171,6 +229,12 @@ License: MIT
   const POP_SIZE = 10000;
   const GENOME_LENGTH = 100; // 100 букв A/T/G/C
   const LETTERS = ['A', 'C', 'G', 'T'];
+  const ALLELE_COLORS = {
+    A: '#e74c3c',
+    C: '#f1c40f',
+    G: '#2980b9',
+    T: '#27ae60'
+  };
 
   const BASE_NECK = 50;        // базовая длина
   const OPTIMAL_NECK = 200;    // оптимум стабилизирующего отбора
@@ -179,6 +243,11 @@ License: MIT
 
   const HIST_BINS = 300;
   const STEP_INTERVAL_MS = 150; // скорость симуляции
+  const ALLELE_LINE_THICKNESS = 5; // px
+  const ALLELE_LINE_LENGTH = 200;  // px
+  const ALLELE_MARKER_SIZE = ALLELE_LINE_THICKNESS;
+  const ALLELE_MARKER_OFFSET = ALLELE_LINE_THICKNESS;
+  const ALLELE_MARKER_COLOR = '#8e44ad';
 
   // --- СОСТОЯНИЕ ---
   let effectMap = [];          // [позиция][буква] -> вклад в см (−5..5)
@@ -191,6 +260,8 @@ License: MIT
 
   let globalOffset = 0;        // ожидаемый суммарный вклад генов для случайного генома
   let mutationRate = 1;        // ожидаемое число мутаций на поколение
+  let selectedAllelePos = 0;
+  let lastAlleleFreqs = [];
 
   // --- ВСПОМОГАТЕЛЬНОЕ ---
   function randInt(min, max) {
@@ -552,6 +623,69 @@ function drawTimeSeries() {
   ctx.fillText('Поколение', margin.left, h - 10);
 }
 
+  // --- РИСОВАНИЕ: АЛЛЕЛИ ---
+  const alleleCanvas = document.getElementById('alleleCanvas');
+  const alleleCtx = alleleCanvas.getContext('2d');
+  const ALLELE_MARGIN = 10;
+
+  function ensureAlleleCanvasSize() {
+    const width = ALLELE_MARGIN * 2 + ALLELE_LINE_LENGTH;
+    const height = ALLELE_MARGIN * 2 + GENOME_LENGTH * ALLELE_LINE_THICKNESS;
+    alleleCanvas.width = width;
+    alleleCanvas.height = height;
+    alleleCanvas.style.width = `${width}px`;
+    alleleCanvas.style.height = `${height}px`;
+  }
+
+  function computeAlleleFrequencies(pop) {
+    if (!pop || pop.length === 0) return [];
+    const counts = Array.from({ length: GENOME_LENGTH }, () => ({ A: 0, C: 0, G: 0, T: 0 }));
+    for (const ind of pop) {
+      const genome = ind.genome;
+      for (let i = 0; i < GENOME_LENGTH; i++) {
+        counts[i][genome[i]]++;
+      }
+    }
+    const total = pop.length || 1;
+    return counts.map(posCounts => {
+      const freqs = {};
+      LETTERS.forEach(letter => {
+        freqs[letter] = (posCounts[letter] / total) * 100;
+      });
+      return freqs;
+    });
+  }
+
+  function drawAlleleFrequencies(pop) {
+    ensureAlleleCanvasSize();
+    const freqs = computeAlleleFrequencies(pop);
+    lastAlleleFreqs = freqs;
+    alleleCtx.clearRect(0, 0, alleleCanvas.width, alleleCanvas.height);
+    let y = ALLELE_MARGIN;
+    for (let pos = 0; pos < freqs.length; pos++) {
+      let x = ALLELE_MARGIN;
+      LETTERS.forEach(letter => {
+        const seg = (freqs[pos][letter] / 100) * ALLELE_LINE_LENGTH;
+        alleleCtx.fillStyle = ALLELE_COLORS[letter];
+        alleleCtx.fillRect(x, y, seg, ALLELE_LINE_THICKNESS);
+        x += seg;
+      });
+      y += ALLELE_LINE_THICKNESS;
+    }
+
+    if (selectedAllelePos >= 0 && selectedAllelePos < GENOME_LENGTH) {
+      const markerY = ALLELE_MARGIN + selectedAllelePos * ALLELE_LINE_THICKNESS;
+      alleleCtx.fillStyle = ALLELE_MARKER_COLOR;
+      const leftX = ALLELE_MARGIN - ALLELE_MARKER_OFFSET - ALLELE_MARKER_SIZE;
+      const rightX = ALLELE_MARGIN + ALLELE_LINE_LENGTH + ALLELE_MARKER_OFFSET;
+      alleleCtx.fillRect(leftX, markerY, ALLELE_MARKER_SIZE, ALLELE_MARKER_SIZE);
+      alleleCtx.fillRect(rightX, markerY, ALLELE_MARKER_SIZE, ALLELE_MARKER_SIZE);
+    }
+    alleleCtx.strokeStyle = '#ccc';
+    alleleCtx.strokeRect(ALLELE_MARGIN, ALLELE_MARGIN, ALLELE_LINE_LENGTH, GENOME_LENGTH * ALLELE_LINE_THICKNESS);
+    return freqs;
+  }
+
   // --- UI ОБНОВЛЕНИЕ ---
   const genSpan = document.getElementById('genSpan');
   const meanSpan = document.getElementById('meanSpan');
@@ -561,6 +695,45 @@ function drawTimeSeries() {
   const stepBtn = document.getElementById('stepBtn');
   const resetBtn = document.getElementById('resetBtn');
   const mutRateInput = document.getElementById('mutRateInput');
+  const alleleInfo = document.getElementById('alleleInfo');
+
+  function showAlleleInfo(pos) {
+    if (!lastAlleleFreqs || lastAlleleFreqs.length === 0) {
+      alleleInfo.textContent = 'Нажмите на строку, чтобы увидеть вклад букв для позиции.';
+      return;
+    }
+    if (pos < 0 || pos >= GENOME_LENGTH) {
+      pos = selectedAllelePos;
+    }
+    selectedAllelePos = pos;
+
+    const effects = effectMap[pos];
+    const freqs = lastAlleleFreqs[pos];
+    alleleInfo.innerHTML = '';
+
+    const title = document.createElement('div');
+    title.className = 'allele-info-title';
+    title.textContent = `Позиция ${pos}`;
+    alleleInfo.appendChild(title);
+
+    LETTERS.forEach(letter => {
+      const row = document.createElement('div');
+      row.className = 'allele-info-row';
+
+      const swatch = document.createElement('div');
+      swatch.className = 'allele-legend-swatch';
+      swatch.style.background = ALLELE_COLORS[letter];
+
+      const text = document.createElement('div');
+      const effectVal = effects[letter];
+      const freqVal = freqs ? freqs[letter] : 0;
+      text.textContent = `${letter}: ${effectVal >= 0 ? '+' : ''}${effectVal} см, ${freqVal.toFixed(1)}%`;
+
+      row.appendChild(swatch);
+      row.appendChild(text);
+      alleleInfo.appendChild(row);
+    });
+  }
 
   function updateStatsUI() {
     const last = history[history.length - 1];
@@ -573,7 +746,9 @@ function drawTimeSeries() {
   function updateUI() {
     drawHistogram(population);
     drawTimeSeries();
+    drawAlleleFrequencies(population);
     updateStatsUI();
+    showAlleleInfo(selectedAllelePos);
   }
 
   // --- СИМУЛЯЦИЯ ---
@@ -585,6 +760,8 @@ function drawTimeSeries() {
     }
     generation = 0;
     history = [];
+    selectedAllelePos = 0;
+    lastAlleleFreqs = [];
     initGenetics();
 
     // читаем текущее значение из инпута
@@ -649,6 +826,19 @@ function drawTimeSeries() {
     }
   });
 
+  alleleCanvas.addEventListener('click', (evt) => {
+    const rect = alleleCanvas.getBoundingClientRect();
+    const scaleY = alleleCanvas.height / rect.height;
+    const y = (evt.clientY - rect.top) * scaleY;
+    const pos = Math.floor((y - ALLELE_MARGIN) / ALLELE_LINE_THICKNESS);
+    if (pos >= 0 && pos < GENOME_LENGTH) {
+      selectedAllelePos = pos;
+      showAlleleInfo(pos);
+    } else {
+      showAlleleInfo(-1);
+    }
+  });
+
   function resizeCanvases() {
     [histCanvas, timeCanvas].forEach(canvas => {
       const rect = canvas.getBoundingClientRect();
@@ -665,6 +855,7 @@ function drawTimeSeries() {
   // window.addEventListener('resize', resizeCanvases);
 
   // Старт
+  showAlleleInfo(-1);
   initSimulation();
 })();
 </script>
