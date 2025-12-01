@@ -731,6 +731,12 @@ function drawTimeSeries() {
   const speedValue = document.getElementById('speedValue');
   const alleleInfo = document.getElementById('alleleInfo');
 
+  let alleleInfoReady = false;
+  let alleleInfoTitle = null;
+  let alleleInfoPlaceholder = null;
+  let alleleInfoContent = null;
+  const alleleInfoValues = {};
+
   const clampAllelePos = (pos) => Math.min(Math.max(pos, 0), GENOME_LENGTH - 1);
 
   const sliderValueToSigma = (value) => 1010 - value;
@@ -742,24 +748,23 @@ function drawTimeSeries() {
     showAlleleInfo(selectedAllelePos);
   }
 
-  function showAlleleInfo(pos) {
-    if (!lastAlleleFreqs || lastAlleleFreqs.length === 0) {
-      alleleInfo.textContent = 'Нажмите на строку, чтобы увидеть вклад букв для позиции.';
-      return;
-    }
-    if (pos < 0 || pos >= GENOME_LENGTH) {
-      pos = selectedAllelePos;
-    }
-    selectedAllelePos = pos;
+  function ensureAlleleInfoElements() {
+    if (alleleInfoReady) return;
 
-    const effects = effectMap[pos];
-    const freqs = lastAlleleFreqs[pos];
     alleleInfo.innerHTML = '';
 
-    const title = document.createElement('div');
-    title.className = 'allele-info-title';
-    title.textContent = `Позиция ${pos}`;
-    alleleInfo.appendChild(title);
+    alleleInfoPlaceholder = document.createElement('div');
+    alleleInfoPlaceholder.className = 'allele-info-placeholder';
+    alleleInfoPlaceholder.textContent = 'Загружаем данные...';
+    alleleInfo.appendChild(alleleInfoPlaceholder);
+
+    alleleInfoContent = document.createElement('div');
+    alleleInfoContent.className = 'allele-info-content';
+    alleleInfo.appendChild(alleleInfoContent);
+
+    alleleInfoTitle = document.createElement('div');
+    alleleInfoTitle.className = 'allele-info-title';
+    alleleInfoContent.appendChild(alleleInfoTitle);
 
     LETTERS.forEach(letter => {
       const row = document.createElement('div');
@@ -770,13 +775,42 @@ function drawTimeSeries() {
       swatch.style.background = ALLELE_COLORS[letter];
 
       const text = document.createElement('div');
-      const effectVal = effects[letter];
-      const freqVal = freqs ? freqs[letter] : 0;
-      text.textContent = `${letter}: ${effectVal >= 0 ? '+' : ''}${effectVal} см, ${freqVal.toFixed(1)}%`;
+      alleleInfoValues[letter] = text;
 
       row.appendChild(swatch);
       row.appendChild(text);
-      alleleInfo.appendChild(row);
+      alleleInfoContent.appendChild(row);
+    });
+
+    alleleInfoReady = true;
+  }
+
+  function showAlleleInfo(pos) {
+    ensureAlleleInfoElements();
+
+    if (!lastAlleleFreqs || lastAlleleFreqs.length === 0) {
+      alleleInfoPlaceholder.textContent = 'Нажмите на строку, чтобы увидеть вклад букв для позиции.';
+      alleleInfoPlaceholder.style.display = 'block';
+      alleleInfoContent.style.display = 'none';
+      return;
+    }
+
+    alleleInfoPlaceholder.style.display = 'none';
+    alleleInfoContent.style.display = 'block';
+
+    if (pos < 0 || pos >= GENOME_LENGTH) {
+      pos = selectedAllelePos;
+    }
+    selectedAllelePos = pos;
+
+    const effects = effectMap[pos];
+    const freqs = lastAlleleFreqs[pos];
+    alleleInfoTitle.textContent = `Позиция ${pos}`;
+
+    LETTERS.forEach(letter => {
+      const effectVal = effects[letter];
+      const freqVal = freqs ? freqs[letter] : 0;
+      alleleInfoValues[letter].textContent = `${letter}: ${effectVal >= 0 ? '+' : ''}${effectVal} см, ${freqVal.toFixed(1)}%`;
     });
   }
 
