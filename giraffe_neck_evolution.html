@@ -655,17 +655,18 @@ function drawTimeSeries() {
       if (rect.width > 0) {
         const ratio = window.devicePixelRatio || 1;
         canvas.width = rect.width * ratio;
-        canvas.height = canvas.height;
+        canvas.height = rect.height * ratio;
         const ctx = canvas.getContext('2d');
         ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       }
     });
     updateUI();
   }
-  // window.addEventListener('resize', resizeCanvases);
+  window.addEventListener('resize', resizeCanvases);
 
   // Старт
   initSimulation();
+  resizeCanvases();
 })();
 </script>
 </body>
