@@ -102,16 +102,25 @@ License: MIT
       color: var(--muted);
       margin-top: 4px;
     }
-    .mut-label {
+    .mut-label, .slider-label {
       display: flex;
       align-items: center;
       gap: 4px;
       font-size: 13px;
     }
-    .mut-label input {
+    .mut-label input, .mut-label select {
       width: 72px;
       padding: 4px 6px;
       font-size: 13px;
+    }
+    .slider-label input[type="range"] {
+      width: 180px;
+    }
+    .slider-value {
+      min-width: 42px;
+      display: inline-block;
+      text-align: right;
+      color: var(--muted);
     }
     .charts-layout {
       display: flex;
@@ -180,7 +189,22 @@ License: MIT
     <button id="resetBtn">Сбросить</button>
     <label class="mut-label">
       Мутации/поколение:
-      <input type="number" id="mutRateInput" min="0" max="10" step="0.1" value="1" />
+      <select id="mutRateSelect">
+        <option value="1">1</option>
+        <option value="10">10</option>
+        <option value="100">100</option>
+        <option value="1000">1000</option>
+      </select>
+    </label>
+    <label class="slider-label">
+      Давление отбора (σ):
+      <input type="range" id="sigmaSlider" min="10" max="1000" step="10" value="810" />
+      <span class="slider-value" id="sigmaValue">200</span>
+    </label>
+    <label class="slider-label">
+      Скорость (мс/шаг):
+      <input type="range" id="speedSlider" min="0" max="5" step="1" value="0" />
+      <span class="slider-value" id="speedValue">150</span>
     </label>
   </div>
 
@@ -242,7 +266,7 @@ License: MIT
   const NECK_MAX_AXIS = 300;
 
   const HIST_BINS = 300;
-  const STEP_INTERVAL_MS = 150; // скорость симуляции
+  const BASE_INTERVAL_MS = 150;
   const ALLELE_LINE_THICKNESS = 5; // px
   const ALLELE_LINE_LENGTH = 200;  // px
   const ALLELE_MARKER_SIZE = ALLELE_LINE_THICKNESS;
@@ -260,6 +284,8 @@ License: MIT
 
   let globalOffset = 0;        // ожидаемый суммарный вклад генов для случайного генома
   let mutationRate = 1;        // ожидаемое число мутаций на поколение
+  let selectionSigma = 200;    // давление отбора
+  let stepIntervalMs = BASE_INTERVAL_MS; // скорость симуляции
   let selectedAllelePos = 0;
   let lastAlleleFreqs = [];
 
@@ -345,7 +371,7 @@ function randomEffect() {
 
 function computeFitness(neck) {
   const diff = neck - OPTIMAL_NECK;
-  const sigma = 200; // чем больше sigma, тем слабее отбор
+  const sigma = selectionSigma; // чем больше sigma, тем слабее отбор
   return Math.exp(-0.5 * (diff * diff) / (sigma * sigma));
 }
 
@@ -698,10 +724,17 @@ function drawTimeSeries() {
   const toggleBtn = document.getElementById('toggleBtn');
   const stepBtn = document.getElementById('stepBtn');
   const resetBtn = document.getElementById('resetBtn');
-  const mutRateInput = document.getElementById('mutRateInput');
+  const mutRateSelect = document.getElementById('mutRateSelect');
+  const sigmaSlider = document.getElementById('sigmaSlider');
+  const speedSlider = document.getElementById('speedSlider');
+  const sigmaValue = document.getElementById('sigmaValue');
+  const speedValue = document.getElementById('speedValue');
   const alleleInfo = document.getElementById('alleleInfo');
 
   const clampAllelePos = (pos) => Math.min(Math.max(pos, 0), GENOME_LENGTH - 1);
+
+  const sliderValueToSigma = (value) => 1010 - value;
+  const sliderValueToInterval = (value) => Math.max(5, BASE_INTERVAL_MS / Math.pow(2, value));
 
   function selectAllele(pos) {
     selectedAllelePos = clampAllelePos(pos);
@@ -747,6 +780,30 @@ function drawTimeSeries() {
     });
   }
 
+  function updateSigmaFromSlider() {
+    const v = parseFloat(sigmaSlider.value);
+    selectionSigma = sliderValueToSigma(!Number.isNaN(v) ? v : 810);
+    sigmaValue.textContent = selectionSigma.toFixed(0);
+  }
+
+  function updateSpeedFromSlider() {
+    const v = parseFloat(speedSlider.value);
+    stepIntervalMs = sliderValueToInterval(!Number.isNaN(v) ? v : 0);
+    const text = stepIntervalMs.toFixed(1).replace(/\.0$/, '');
+    speedValue.textContent = text;
+    if (isRunning) {
+      clearInterval(intervalId);
+      intervalId = setInterval(stepSimulation, stepIntervalMs);
+    }
+  }
+
+  function updateMutationFromSelect() {
+    const v = parseFloat(mutRateSelect.value);
+    if (!Number.isNaN(v) && v >= 0) {
+      mutationRate = v;
+    }
+  }
+
   function updateStatsUI() {
     const last = history[history.length - 1];
     genSpan.textContent = last.gen;
@@ -776,9 +833,9 @@ function drawTimeSeries() {
     lastAlleleFreqs = [];
     initGenetics();
 
-    // читаем текущее значение из инпута
-    const v = parseFloat(mutRateInput.value.replace(',', '.'));
-    mutationRate = (!Number.isNaN(v) && v >= 0) ? v : 1;
+    updateMutationFromSelect();
+    updateSigmaFromSlider();
+    updateSpeedFromSlider();
 
     population = new Array(POP_SIZE);
     for (let i = 0; i < POP_SIZE; i++) {
@@ -802,7 +859,7 @@ function drawTimeSeries() {
     if (isRunning) return;
     isRunning = true;
     toggleBtn.textContent = 'Пауза';
-    intervalId = setInterval(stepSimulation, STEP_INTERVAL_MS);
+    intervalId = setInterval(stepSimulation, stepIntervalMs);
   }
 
   function stopSimulation() {
@@ -831,12 +888,9 @@ function drawTimeSeries() {
     initSimulation();
   });
 
-  mutRateInput.addEventListener('input', () => {
-    const v = parseFloat(mutRateInput.value.replace(',', '.'));
-    if (!Number.isNaN(v) && v >= 0) {
-      mutationRate = v;
-    }
-  });
+  mutRateSelect.addEventListener('change', updateMutationFromSelect);
+  sigmaSlider.addEventListener('input', updateSigmaFromSlider);
+  speedSlider.addEventListener('input', updateSpeedFromSlider);
 
   alleleCanvas.addEventListener('click', (evt) => {
     const rect = alleleCanvas.getBoundingClientRect();
