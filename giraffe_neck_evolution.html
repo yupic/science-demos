@@ -198,7 +198,7 @@ License: MIT
     </label>
     <label class="slider-label">
       Давление отбора (σ):
-      <input type="range" id="sigmaSlider" min="10" max="1000" step="10" value="810" />
+      <input type="range" id="sigmaSlider" min="10" max="500" step="10" value="310" />
       <span class="slider-value" id="sigmaValue">200</span>
     </label>
     <label class="slider-label">
@@ -263,7 +263,7 @@ License: MIT
   const BASE_NECK = 50;        // базовая длина
   const OPTIMAL_NECK = 200;    // оптимум стабилизирующего отбора
   const NECK_MIN_AXIS = 0;     // ось графиков по Y
-  const NECK_MAX_AXIS = 300;
+  const NECK_MAX_AXIS = 250;
 
   const HIST_BINS = 300;
   const BASE_INTERVAL_MS = 150;
@@ -283,7 +283,7 @@ License: MIT
   let intervalId = null;
 
   let globalOffset = 0;        // ожидаемый суммарный вклад генов для случайного генома
-  let mutationRate = 1;        // ожидаемое число мутаций на поколение
+  let mutationRate = 10;       // ожидаемое число мутаций на поколение
   let selectionSigma = 200;    // давление отбора
   let stepIntervalMs = BASE_INTERVAL_MS; // скорость симуляции
   let selectedAllelePos = 0;
@@ -488,7 +488,7 @@ function drawHistogram(pop) {
   const h = rect.height;
     ctx.clearRect(0, 0, w, h);
 
-    const margin = { left: 40, right: 10, top: 10, bottom: 30 };
+    const margin = { left: 20, right: 20, top: 10, bottom: 40 };
     const plotW = w - margin.left - margin.right;
     const plotH = h - margin.top - margin.bottom;
 
@@ -551,7 +551,7 @@ function drawHistogram(pop) {
       ctx.fillText(Math.round(v), x, y);
     }
     ctx.textAlign = 'left';
-    ctx.fillText('Длина шеи (см)', margin.left, h - 10);
+    ctx.fillText('Длина шеи, см', margin.left, h - 20);
   }
 
   // --- РИСОВАНИЕ: ВРЕМЯ ---
@@ -567,7 +567,7 @@ function drawTimeSeries() {
 
   if (history.length === 0) return;
 
-  const margin = { left: 40, right: 10, top: 10, bottom: 30 };
+  const margin = { left: 20, right: 20, top: 10, bottom: 40 };
   const plotW = w - margin.left - margin.right;
   const plotH = h - margin.top - margin.bottom;
 
@@ -578,8 +578,8 @@ function drawTimeSeries() {
   const maxY = NECK_MAX_AXIS;
 
   const lastGen = history[history.length - 1].gen;
-  // ДО 200 поколений шкала фиксирована 0..200, дальше тянется за линией
-  const maxGen = Math.max(400, lastGen);
+  // ДО 1000 поколений шкала фиксирована 0..1000, дальше тянется за линией
+  const maxGen = Math.max(1000, lastGen);
 
   // Сетка по Y
   ctx.strokeStyle = '#e0e0e0';
@@ -650,7 +650,7 @@ function drawTimeSeries() {
     ctx.fillText(g, x, y);
   }
   ctx.textAlign = 'left';
-  ctx.fillText('Поколение', margin.left, h - 10);
+  ctx.fillText('Поколение', margin.left, h - 20);
 }
 
   // --- РИСОВАНИЕ: АЛЛЕЛИ ---
@@ -733,7 +733,7 @@ function drawTimeSeries() {
 
   const clampAllelePos = (pos) => Math.min(Math.max(pos, 0), GENOME_LENGTH - 1);
 
-  const sliderValueToSigma = (value) => 1010 - value;
+  const sliderValueToSigma = (value) => 510 - value;
   const sliderValueToInterval = (value) => Math.max(5, BASE_INTERVAL_MS / Math.pow(2, value));
 
   function selectAllele(pos) {
