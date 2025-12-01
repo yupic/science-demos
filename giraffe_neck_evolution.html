@@ -170,7 +170,7 @@ License: MIT
   // --- ПАРАМЕТРЫ МОДЕЛИ ---
   const POP_SIZE = 10000;
   const GENOME_LENGTH = 100; // 100 букв A/T/G/C
-  const LETTERS = ['A', 'T', 'G', 'C'];
+  const LETTERS = ['A', 'C', 'G', 'T'];
 
   const BASE_NECK = 50;        // базовая длина
   const OPTIMAL_NECK = 200;    // оптимум стабилизирующего отбора
@@ -222,9 +222,11 @@ function randomEffect() {
 
     for (let pos = 0; pos < GENOME_LENGTH; pos++) {
       const posMap = {};
-      LETTERS.forEach(letter => {
-        posMap[letter] = randInt(-1, 1);
-        //posMap[letter] = randomEffect();
+      const effects = LETTERS.map(() => randInt(-1, 1));
+      //const effects = LETTERS.map(() => randomEffect());
+      const sorted = effects.slice().sort((a, b) => a - b);
+      LETTERS.forEach((letter, idx) => {
+        posMap[letter] = sorted[idx];
       });
       effectMap[pos] = posMap;
       const shuffledLetters = shuffle(LETTERS.slice());
