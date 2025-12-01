@@ -384,10 +384,11 @@ function computeFitness(neck) {
   const histCanvas = document.getElementById('histCanvas');
   const histCtx = histCanvas.getContext('2d');
 
-  function drawHistogram(pop) {
-    const ctx = histCtx;
-    const w = histCanvas.width;
-    const h = histCanvas.height;
+function drawHistogram(pop) {
+  const ctx = histCtx;
+  const rect = histCanvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
     ctx.clearRect(0, 0, w, h);
 
     const margin = { left: 40, right: 10, top: 10, bottom: 30 };
@@ -462,8 +463,9 @@ function computeFitness(neck) {
 
 function drawTimeSeries() {
   const ctx = timeCtx;
-  const w = timeCanvas.width;
-  const h = timeCanvas.height;
+  const rect = timeCanvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
   ctx.clearRect(0, 0, w, h);
 
   if (history.length === 0) return;
