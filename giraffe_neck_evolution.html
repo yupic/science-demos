@@ -1,0 +1,683 @@
+﻿<!--
+Interactive science demo.
+Part of the "science-demos" project.
+
+GitHub: https://github.com/yupic/science-demos
+YouTube: https://www.youtube.com/@autism-ru
+Telegram: https://t.me/autism_science
+License: MIT
+-->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Эволюция длины шеи жирафа</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --fg: #222;
+      --accent: #2c7be5;
+      --accent2: #e67e22;
+      --muted: #666;
+      --card: #fff;
+      --border: #ddd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+    p.desc {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    button:hover {
+      background: #f0f4ff;
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 0 0 rgba(0,0,0,0.05);
+    }
+    .stats {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .stats span.value {
+      color: var(--fg);
+      font-weight: 600;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    canvas {
+      width: 100%;
+      max-width: 100%;
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+    }
+    .note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .mut-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+    }
+    .mut-label input {
+      width: 72px;
+      padding: 4px 6px;
+      font-size: 13px;
+    }
+    @media (max-width: 600px) {
+      h1 { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Эволюция длины шеи жирафа</h1>
+  <p class="desc">
+    Модель: 100 генов (A/T/G/C), каждый даёт вклад от −5 до +5 см. Отбор стабилизирующий вокруг 200&nbsp;см.
+    На каждом поколении происходит в среднем заданное число мутаций (может быть меньше или больше за счёт случайности).
+  </p>
+
+  <div class="controls">
+    <button id="toggleBtn">Старт</button>
+    <button id="stepBtn">Шаг (1 поколение)</button>
+    <button id="resetBtn">Сбросить</button>
+    <label class="mut-label">
+      Мутации/поколение:
+      <input type="number" id="mutRateInput" min="0" max="10" step="0.1" value="1" />
+    </label>
+  </div>
+
+  <div class="stats">
+    Поколение:
+    <span class="value" id="genSpan">0</span>
+    &nbsp;|&nbsp; средняя длина шеи:
+    <span class="value" id="meanSpan">0</span> см
+    &nbsp;|&nbsp; мин:
+    <span class="value" id="minSpan">0</span> см
+    &nbsp;|&nbsp; макс:
+    <span class="value" id="maxSpan">0</span> см
+    &nbsp;|&nbsp; оптимум: <span class="value">200</span> см
+  </div>
+
+  <div class="card">
+    <div class="card-title">Распределение длины шеи в текущем поколении</div>
+    <canvas id="histCanvas" width="900" height="260"></canvas>
+    <div class="note">Показан гистограммой текущий колокол длин шеи (см).</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Динамика средней длины шеи</div>
+    <canvas id="timeCanvas" width="900" height="220"></canvas>
+    <div class="note">
+      Линия — средняя длина шеи по поколениям. Пунктир — оптимум 200&nbsp;см.  
+      Чем ближе к нему, тем выше приспособленность.
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // --- ПАРАМЕТРЫ МОДЕЛИ ---
+  const POP_SIZE = 10000;
+  const GENOME_LENGTH = 100; // 100 букв A/T/G/C
+  const LETTERS = ['A', 'T', 'G', 'C'];
+
+  const BASE_NECK = 50;        // базовая длина
+  const OPTIMAL_NECK = 200;    // оптимум стабилизирующего отбора
+  const NECK_MIN_AXIS = 0;     // ось графиков по Y
+  const NECK_MAX_AXIS = 300;
+
+  const HIST_BINS = 300;
+  const STEP_INTERVAL_MS = 150; // скорость симуляции
+
+  // --- СОСТОЯНИЕ ---
+  let effectMap = [];          // [позиция][буква] -> вклад в см (−5..5)
+  let allowedInitial = [];     // [позиция] -> Set(букв), доступных в начальной популяции
+  let population = [];         // [{ genome: string, neck: number }]
+  let generation = 0;
+  let history = [];            // [{ gen, mean, min, max }]
+  let isRunning = false;
+  let intervalId = null;
+
+  let globalOffset = 0;        // ожидаемый суммарный вклад генов для случайного генома
+  let mutationRate = 1;        // ожидаемое число мутаций на поколение
+
+  // --- ВСПОМОГАТЕЛЬНОЕ ---
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+function randomEffect() {
+  // большинство эффектов около 0, редкие крупные
+  const base = Math.round((Math.random() * 2 - 1) * 2); // -2..2
+  if (Math.random() < 0.1) { // редкие большие
+    return base * 2; // -4..4
+  }
+  return base;
+}
+
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = randInt(0, i);
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  // --- ИНИЦИАЛИЗАЦИЯ ГЕНЕТИКИ ---
+  function initGenetics() {
+    effectMap = new Array(GENOME_LENGTH);
+    allowedInitial = new Array(GENOME_LENGTH);
+    globalOffset = 0;
+
+    const leftoverPairs = [];
+    for (let pos = 0; pos < GENOME_LENGTH; pos++) {
+      const posMap = {};
+      LETTERS.forEach(letter => {
+        posMap[letter] = randInt(-1, 1);
+        //posMap[letter] = randomEffect();
+      });
+      effectMap[pos] = posMap;
+      allowedInitial[pos] = new Set();
+
+      const shuffledLetters = shuffle(LETTERS.slice());
+      allowedInitial[pos].add(shuffledLetters[0]);
+
+      for (let i = 1; i < shuffledLetters.length; i++) {
+        leftoverPairs.push({ pos, letter: shuffledLetters[i] });
+      }
+    }
+
+    shuffle(leftoverPairs);
+    const extraToAllow = GENOME_LENGTH; // ещё 100 вариантов
+    for (let i = 0; i < extraToAllow; i++) {
+      const pair = leftoverPairs[i];
+      allowedInitial[pair.pos].add(pair.letter);
+    }
+
+    globalOffset = 0;
+    for (let pos = 0; pos < GENOME_LENGTH; pos++) {
+      let sum = 0;
+      let count = 0;
+      allowedInitial[pos].forEach(letter => {
+        sum += effectMap[pos][letter];
+        count++;
+      });
+      const meanAtPos = sum / count;
+      globalOffset += meanAtPos;
+    }
+  }
+
+  function randomInitialGenome() {
+    const chars = [];
+    for (let pos = 0; pos < GENOME_LENGTH; pos++) {
+      const allowed = Array.from(allowedInitial[pos]);
+      const chosen = allowed[randInt(0, allowed.length - 1)];
+      chars.push(chosen);
+    }
+    return chars.join('');
+  }
+
+  function computeNeck(genome) {
+    let sum = 0;
+    for (let i = 0; i < GENOME_LENGTH; i++) {
+      const letter = genome[i];
+      sum += effectMap[i][letter];
+    }
+    return BASE_NECK + (sum - globalOffset);
+  }
+
+  function computeFitness_OLD(neck) {
+    const diff = neck - OPTIMAL_NECK;
+    const width = 1000; // чем больше, тем мягче отбор
+    return 1 / (1 + (diff * diff) / (width * width));
+  }
+
+function computeFitness(neck) {
+  const diff = neck - OPTIMAL_NECK;
+  const sigma = 200; // чем больше sigma, тем слабее отбор
+  return Math.exp(-0.5 * (diff * diff) / (sigma * sigma));
+}
+
+  function recombineGenomes(g1, g2) {
+    const childChars = new Array(GENOME_LENGTH);
+    for (let i = 0; i < GENOME_LENGTH; i++) {
+      childChars[i] = Math.random() < 0.5 ? g1[i] : g2[i];
+    }
+    return childChars.join('');
+  }
+
+  function chooseParentIndex(cumFitness) {
+    const total = cumFitness[cumFitness.length - 1];
+    let r = Math.random() * total;
+    let lo = 0;
+    let hi = cumFitness.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (r <= cumFitness[mid]) {
+        hi = mid;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    return lo;
+  }
+
+  function applyMutations(pop) {
+    const n = pop.length;
+    let lambda = Math.max(0, mutationRate);
+    const full = Math.floor(lambda);
+    const frac = lambda - full;
+
+    let totalMut = full;
+    if (Math.random() < frac) totalMut++;
+
+    for (let k = 0; k < totalMut; k++) {
+      const mutChildIdx = randInt(0, n - 1);
+      const mutPos = randInt(0, GENOME_LENGTH - 1);
+      let gChars = pop[mutChildIdx].genome.split('');
+      const oldBase = gChars[mutPos];
+      let newBase = oldBase;
+      while (newBase === oldBase) {
+        newBase = LETTERS[randInt(0, LETTERS.length - 1)];
+      }
+      gChars[mutPos] = newBase;
+      const newGenome = gChars.join('');
+      pop[mutChildIdx].genome = newGenome;
+      pop[mutChildIdx].neck = computeNeck(newGenome);
+    }
+  }
+
+  function makeNextGeneration(pop) {
+    const n = pop.length;
+    const cumFitness = new Array(n);
+    let sumFit = 0;
+    for (let i = 0; i < n; i++) {
+      const f = computeFitness(pop[i].neck);
+      sumFit += f;
+      cumFitness[i] = sumFit;
+    }
+
+    const newPop = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const momIdx = chooseParentIndex(cumFitness);
+      const dadIdx = chooseParentIndex(cumFitness);
+      const mother = pop[momIdx];
+      const father = pop[dadIdx];
+      const genome = recombineGenomes(mother.genome, father.genome);
+      const neck = computeNeck(genome);
+      newPop[i] = { genome, neck };
+    }
+
+    // применяем случайное число мутаций в этом поколении
+    applyMutations(newPop);
+    return newPop;
+  }
+
+  function computeStats(pop) {
+    const lengths = pop.map(p => p.neck);
+    let sum = 0;
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of lengths) {
+      sum += v;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    return {
+      mean: sum / lengths.length,
+      min,
+      max
+    };
+  }
+
+  function recordStats() {
+    const s = computeStats(population);
+    history.push({
+      gen: generation,
+      mean: s.mean,
+      min: s.min,
+      max: s.max
+    });
+  }
+
+  // --- РИСОВАНИЕ: ГИСТОГРАММА ---
+  const histCanvas = document.getElementById('histCanvas');
+  const histCtx = histCanvas.getContext('2d');
+
+  function drawHistogram(pop) {
+    const ctx = histCtx;
+    const w = histCanvas.width;
+    const h = histCanvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const margin = { left: 40, right: 10, top: 10, bottom: 30 };
+    const plotW = w - margin.left - margin.right;
+    const plotH = h - margin.top - margin.bottom;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(margin.left, margin.top, plotW, plotH);
+
+    const minX = NECK_MIN_AXIS;
+    const maxX = NECK_MAX_AXIS;
+    const binCount = HIST_BINS;
+    const binSize = (maxX - minX) / binCount;
+    const bins = new Array(binCount).fill(0);
+
+    for (const ind of pop) {
+      let v = ind.neck;
+      if (v < minX) v = minX;
+      if (v > maxX) v = maxX - 1e-6;
+      const idx = Math.floor((v - minX) / binSize);
+      bins[idx]++;
+    }
+
+    const maxBin = Math.max(...bins, 1);
+
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    const gridYSteps = 4;
+    for (let i = 0; i <= gridYSteps; i++) {
+      const y = margin.top + (plotH * i) / gridYSteps;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, y);
+      ctx.lineTo(margin.left + plotW, y);
+      ctx.stroke();
+    }
+
+    const barWidth = plotW / binCount;
+    ctx.fillStyle = '#2c7be5';
+    for (let i = 0; i < binCount; i++) {
+      const count = bins[i];
+      const barHeight = (count / maxBin) * plotH;
+      const x = margin.left + i * barWidth;
+      const y = margin.top + plotH - barHeight;
+      ctx.fillRect(x, y, barWidth - 1, barHeight);
+    }
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(margin.left, margin.top + plotH);
+    ctx.lineTo(margin.left + plotW, margin.top + plotH);
+    ctx.stroke();
+
+    ctx.fillStyle = '#333';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const ticks = 5;
+    for (let i = 0; i <= ticks; i++) {
+      const v = minX + ((maxX - minX) * i) / ticks;
+      const x = margin.left + (plotW * i) / ticks;
+      const y = margin.top + plotH + 4;
+      ctx.fillText(Math.round(v), x, y);
+    }
+    ctx.textAlign = 'left';
+    ctx.fillText('Длина шеи (см)', margin.left, h - 10);
+  }
+
+  // --- РИСОВАНИЕ: ВРЕМЯ ---
+  const timeCanvas = document.getElementById('timeCanvas');
+  const timeCtx = timeCanvas.getContext('2d');
+
+function drawTimeSeries() {
+  const ctx = timeCtx;
+  const w = timeCanvas.width;
+  const h = timeCanvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  if (history.length === 0) return;
+
+  const margin = { left: 40, right: 10, top: 10, bottom: 30 };
+  const plotW = w - margin.left - margin.right;
+  const plotH = h - margin.top - margin.bottom;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(margin.left, margin.top, plotW, plotH);
+
+  const minY = NECK_MIN_AXIS;
+  const maxY = NECK_MAX_AXIS;
+
+  const lastGen = history[history.length - 1].gen;
+  // ДО 200 поколений шкала фиксирована 0..200, дальше тянется за линией
+  const maxGen = Math.max(400, lastGen);
+
+  // Сетка по Y
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  const gridYSteps = 5;
+  for (let i = 0; i <= gridYSteps; i++) {
+    const y = margin.top + (plotH * i) / gridYSteps;
+    ctx.beginPath();
+    ctx.moveTo(margin.left, y);
+    ctx.lineTo(margin.left + plotW, y);
+    ctx.stroke();
+  }
+
+  // Линия оптимума
+  const optY = margin.top + plotH - ((OPTIMAL_NECK - minY) / (maxY - minY)) * plotH;
+  ctx.save();
+  ctx.strokeStyle = '#999';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(margin.left, optY);
+  ctx.lineTo(margin.left + plotW, optY);
+  ctx.stroke();
+  ctx.restore();
+
+  // Линия средней длины
+  ctx.strokeStyle = '#e67e22';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  history.forEach((pt, idx) => {
+    const x = margin.left + (plotW * pt.gen) / maxGen;
+    const y = margin.top + plotH - ((pt.mean - minY) / (maxY - minY)) * plotH;
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // ВЫДЕЛЯЕМ ПОСЛЕДНЮЮ ТОЧКУ
+  const last = history[history.length - 1];
+  const lastX = margin.left + (plotW * last.gen) / maxGen;
+  const lastY = margin.top + plotH - ((last.mean - minY) / (maxY - minY)) * plotH;
+  ctx.beginPath();
+  ctx.fillStyle = '#e67e22';
+  ctx.arc(lastX, lastY, 4, 0, Math.PI * 2); // кружок толще линии
+  ctx.fill();
+
+  ctx.font = '12px system-ui';
+  ctx.fillText(last.mean.toFixed(1), lastX - 5, lastY - 20);
+
+  // Ось X (поколения)
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(margin.left, margin.top + plotH);
+  ctx.lineTo(margin.left + plotW, margin.top + plotH);
+  ctx.stroke();
+
+  ctx.fillStyle = '#333';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const ticks = 5;
+  for (let i = 0; i <= ticks; i++) {
+    const g = Math.round((maxGen * i) / ticks);
+    const x = margin.left + (plotW * i) / ticks;
+    const y = margin.top + plotH + 4;
+    ctx.fillText(g, x, y);
+  }
+  ctx.textAlign = 'left';
+  ctx.fillText('Поколение', margin.left, h - 10);
+}
+
+  // --- UI ОБНОВЛЕНИЕ ---
+  const genSpan = document.getElementById('genSpan');
+  const meanSpan = document.getElementById('meanSpan');
+  const minSpan = document.getElementById('minSpan');
+  const maxSpan = document.getElementById('maxSpan');
+  const toggleBtn = document.getElementById('toggleBtn');
+  const stepBtn = document.getElementById('stepBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const mutRateInput = document.getElementById('mutRateInput');
+
+  function updateStatsUI() {
+    const last = history[history.length - 1];
+    genSpan.textContent = last.gen;
+    meanSpan.textContent = last.mean.toFixed(1);
+    minSpan.textContent = last.min.toFixed(1);
+    maxSpan.textContent = last.max.toFixed(1);
+  }
+
+  function updateUI() {
+    drawHistogram(population);
+    drawTimeSeries();
+    updateStatsUI();
+  }
+
+  // --- СИМУЛЯЦИЯ ---
+  function initSimulation() {
+    isRunning = false;
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+    generation = 0;
+    history = [];
+    initGenetics();
+
+    // читаем текущее значение из инпута
+    const v = parseFloat(mutRateInput.value.replace(',', '.'));
+    mutationRate = (!Number.isNaN(v) && v >= 0) ? v : 1;
+
+    population = new Array(POP_SIZE);
+    for (let i = 0; i < POP_SIZE; i++) {
+      const genome = randomInitialGenome();
+      const neck = computeNeck(genome);
+      population[i] = { genome, neck };
+    }
+    recordStats();
+    updateUI();
+    toggleBtn.textContent = 'Старт';
+  }
+
+  function stepSimulation() {
+    population = makeNextGeneration(population);
+    generation++;
+    recordStats();
+    updateUI();
+  }
+
+  function startSimulation() {
+    if (isRunning) return;
+    isRunning = true;
+    toggleBtn.textContent = 'Пауза';
+    intervalId = setInterval(stepSimulation, STEP_INTERVAL_MS);
+  }
+
+  function stopSimulation() {
+    if (!isRunning) return;
+    isRunning = false;
+    toggleBtn.textContent = 'Старт';
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  // --- ОБРАБОТЧИКИ ---
+  toggleBtn.addEventListener('click', () => {
+    if (isRunning) stopSimulation();
+    else startSimulation();
+  });
+
+  stepBtn.addEventListener('click', () => {
+    if (!isRunning) {
+      stepSimulation();
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    initSimulation();
+  });
+
+  mutRateInput.addEventListener('input', () => {
+    const v = parseFloat(mutRateInput.value.replace(',', '.'));
+    if (!Number.isNaN(v) && v >= 0) {
+      mutationRate = v;
+    }
+  });
+
+  function resizeCanvases() {
+    [histCanvas, timeCanvas].forEach(canvas => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width > 0) {
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = rect.width * ratio;
+        canvas.height = canvas.height;
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      }
+    });
+    updateUI();
+  }
+  // window.addEventListener('resize', resizeCanvases);
+
+  // Старт
+  initSimulation();
+})();
+</script>
+</body>
+</html>
