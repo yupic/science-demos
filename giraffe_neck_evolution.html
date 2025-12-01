@@ -220,7 +220,6 @@ function randomEffect() {
     allowedInitial = new Array(GENOME_LENGTH);
     globalOffset = 0;
 
-    const leftoverPairs = [];
     for (let pos = 0; pos < GENOME_LENGTH; pos++) {
       const posMap = {};
       LETTERS.forEach(letter => {
@@ -228,21 +227,9 @@ function randomEffect() {
         //posMap[letter] = randomEffect();
       });
       effectMap[pos] = posMap;
-      allowedInitial[pos] = new Set();
-
       const shuffledLetters = shuffle(LETTERS.slice());
-      allowedInitial[pos].add(shuffledLetters[0]);
-
-      for (let i = 1; i < shuffledLetters.length; i++) {
-        leftoverPairs.push({ pos, letter: shuffledLetters[i] });
-      }
-    }
-
-    shuffle(leftoverPairs);
-    const extraToAllow = GENOME_LENGTH; // ещё 100 вариантов
-    for (let i = 0; i < extraToAllow; i++) {
-      const pair = leftoverPairs[i];
-      allowedInitial[pair.pos].add(pair.letter);
+      // для каждой позиции выбираем ровно 2 стартовых аллеля
+      allowedInitial[pos] = new Set([shuffledLetters[0], shuffledLetters[1]]);
     }
 
     globalOffset = 0;
