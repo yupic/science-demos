@@ -529,7 +529,9 @@ function drawTimeSeries() {
   ctx.fill();
 
   ctx.font = '12px system-ui';
-  ctx.fillText(last.mean.toFixed(1), lastX - 5, lastY - 20);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(last.mean.toFixed(1), lastX, lastY - 20);
 
   // Ось X (поколения)
   ctx.strokeStyle = '#000';
