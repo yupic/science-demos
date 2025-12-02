@@ -483,9 +483,8 @@ License: MIT
 
   function drawHistogram(pop) {
     const ctx = histCtx;
-    const rect = histCanvas.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
+    const w = histCanvas.clientWidth;
+    const h = histCanvas.clientHeight;
     ctx.clearRect(0, 0, w, h);
 
     const margin = { left: 20, right: 20, top: 10, bottom: 40 };
@@ -560,9 +559,8 @@ License: MIT
 
   function drawTimeSeries() {
     const ctx = timeCtx;
-    const rect = timeCanvas.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
+    const w = timeCanvas.clientWidth;
+    const h = timeCanvas.clientHeight;
     ctx.clearRect(0, 0, w, h);
 
     if (history.length === 0) return;
@@ -928,7 +926,7 @@ License: MIT
 
   alleleCanvas.addEventListener('click', (evt) => {
     const rect = alleleCanvas.getBoundingClientRect();
-    const scaleY = alleleCanvas.height / rect.height;
+    const scaleY = alleleCanvas.clientHeight ? (alleleCanvas.height / alleleCanvas.clientHeight) : 1;
     const y = (evt.clientY - rect.top) * scaleY;
     const pos = Math.floor((y - ALLELE_MARGIN) / ALLELE_LINE_THICKNESS);
     if (pos >= 0 && pos < GENOME_LENGTH) {
@@ -949,11 +947,12 @@ License: MIT
 
   function resizeCanvases() {
     [histCanvas, timeCanvas].forEach(canvas => {
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width > 0) {
+      const cssWidth = canvas.clientWidth;
+      const cssHeight = canvas.clientHeight;
+      if (cssWidth > 0 && cssHeight > 0) {
         const ratio = window.devicePixelRatio || 1;
-        canvas.width = rect.width * ratio;
-        canvas.height = rect.height * ratio;
+        canvas.width = cssWidth * ratio;
+        canvas.height = cssHeight * ratio;
         const ctx = canvas.getContext('2d');
         ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       }
