@@ -294,14 +294,14 @@ License: MIT
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
-function randomEffect() {
-  // большинство эффектов около 0, редкие крупные
-  const base = Math.round((Math.random() * 2 - 1) * 2); // -2..2
-  if (Math.random() < 0.1) { // редкие большие
-    return base * 2; // -4..4
+  function randomEffect() {
+    // большинство эффектов около 0, редкие крупные
+    const base = Math.round((Math.random() * 2 - 1) * 2); // -2..2
+    if (Math.random() < 0.1) { // редкие большие
+      return base * 2; // -4..4
+    }
+    return base;
   }
-  return base;
-}
 
   function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -369,11 +369,11 @@ function randomEffect() {
     return 1 / (1 + (diff * diff) / (width * width));
   }
 
-function computeFitness(neck) {
-  const diff = neck - OPTIMAL_NECK;
-  const sigma = selectionSigma; // чем больше sigma, тем слабее отбор
-  return Math.exp(-0.5 * (diff * diff) / (sigma * sigma));
-}
+  function computeFitness(neck) {
+    const diff = neck - OPTIMAL_NECK;
+    const sigma = selectionSigma; // чем больше sigma, тем слабее отбор
+    return Math.exp(-0.5 * (diff * diff) / (sigma * sigma));
+  }
 
   function recombineGenomes(g1, g2) {
     const childChars = new Array(GENOME_LENGTH);
@@ -481,11 +481,11 @@ function computeFitness(neck) {
   const histCanvas = document.getElementById('histCanvas');
   const histCtx = histCanvas.getContext('2d');
 
-function drawHistogram(pop) {
-  const ctx = histCtx;
-  const rect = histCanvas.getBoundingClientRect();
-  const w = rect.width;
-  const h = rect.height;
+  function drawHistogram(pop) {
+    const ctx = histCtx;
+    const rect = histCanvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
     ctx.clearRect(0, 0, w, h);
 
     const margin = { left: 20, right: 20, top: 10, bottom: 40 };
@@ -558,100 +558,100 @@ function drawHistogram(pop) {
   const timeCanvas = document.getElementById('timeCanvas');
   const timeCtx = timeCanvas.getContext('2d');
 
-function drawTimeSeries() {
-  const ctx = timeCtx;
-  const rect = timeCanvas.getBoundingClientRect();
-  const w = rect.width;
-  const h = rect.height;
-  ctx.clearRect(0, 0, w, h);
+  function drawTimeSeries() {
+    const ctx = timeCtx;
+    const rect = timeCanvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    ctx.clearRect(0, 0, w, h);
 
-  if (history.length === 0) return;
+    if (history.length === 0) return;
 
-  const margin = { left: 20, right: 20, top: 10, bottom: 40 };
-  const plotW = w - margin.left - margin.right;
-  const plotH = h - margin.top - margin.bottom;
+    const margin = { left: 20, right: 20, top: 10, bottom: 40 };
+    const plotW = w - margin.left - margin.right;
+    const plotH = h - margin.top - margin.bottom;
 
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(margin.left, margin.top, plotW, plotH);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(margin.left, margin.top, plotW, plotH);
 
-  const minY = NECK_MIN_AXIS;
-  const maxY = NECK_MAX_AXIS;
+    const minY = NECK_MIN_AXIS;
+    const maxY = NECK_MAX_AXIS;
 
-  const lastGen = history[history.length - 1].gen;
-  // ДО 1000 поколений шкала фиксирована 0..1000, дальше тянется за линией
-  const maxGen = Math.max(1000, lastGen);
+    const lastGen = history[history.length - 1].gen;
+    // ДО 1000 поколений шкала фиксирована 0..1000, дальше тянется за линией
+    const maxGen = Math.max(1000, lastGen);
 
-  // Сетка по Y
-  ctx.strokeStyle = '#e0e0e0';
-  ctx.lineWidth = 1;
-  const gridYSteps = 5;
-  for (let i = 0; i <= gridYSteps; i++) {
-    const y = margin.top + (plotH * i) / gridYSteps;
+    // Сетка по Y
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    const gridYSteps = 5;
+    for (let i = 0; i <= gridYSteps; i++) {
+      const y = margin.top + (plotH * i) / gridYSteps;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, y);
+      ctx.lineTo(margin.left + plotW, y);
+      ctx.stroke();
+    }
+
+    // Линия оптимума
+    const optY = margin.top + plotH - ((OPTIMAL_NECK - minY) / (maxY - minY)) * plotH;
+    ctx.save();
+    ctx.strokeStyle = '#999';
+    ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(margin.left, y);
-    ctx.lineTo(margin.left + plotW, y);
+    ctx.moveTo(margin.left, optY);
+    ctx.lineTo(margin.left + plotW, optY);
     ctx.stroke();
+    ctx.restore();
+
+    // Линия средней длины
+    ctx.strokeStyle = '#e67e22';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    history.forEach((pt, idx) => {
+      const x = margin.left + (plotW * pt.gen) / maxGen;
+      const y = margin.top + plotH - ((pt.mean - minY) / (maxY - minY)) * plotH;
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // ВЫДЕЛЯЕМ ПОСЛЕДНЮЮ ТОЧКУ
+    const last = history[history.length - 1];
+    const lastX = margin.left + (plotW * last.gen) / maxGen;
+    const lastY = margin.top + plotH - ((last.mean - minY) / (maxY - minY)) * plotH;
+    ctx.beginPath();
+    ctx.fillStyle = '#e67e22';
+    ctx.arc(lastX, lastY, 4, 0, Math.PI * 2); // кружок толще линии
+    ctx.fill();
+
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(last.mean.toFixed(1), lastX, lastY - 20);
+
+    // Ось X (поколения)
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(margin.left, margin.top + plotH);
+    ctx.lineTo(margin.left + plotW, margin.top + plotH);
+    ctx.stroke();
+
+    ctx.fillStyle = '#333';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const ticks = 5;
+    for (let i = 0; i <= ticks; i++) {
+      const g = Math.round((maxGen * i) / ticks);
+      const x = margin.left + (plotW * i) / ticks;
+      const y = margin.top + plotH + 4;
+      ctx.fillText(g, x, y);
+    }
+    ctx.textAlign = 'left';
+    ctx.fillText('Поколение', margin.left, h - 20);
   }
-
-  // Линия оптимума
-  const optY = margin.top + plotH - ((OPTIMAL_NECK - minY) / (maxY - minY)) * plotH;
-  ctx.save();
-  ctx.strokeStyle = '#999';
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(margin.left, optY);
-  ctx.lineTo(margin.left + plotW, optY);
-  ctx.stroke();
-  ctx.restore();
-
-  // Линия средней длины
-  ctx.strokeStyle = '#e67e22';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  history.forEach((pt, idx) => {
-    const x = margin.left + (plotW * pt.gen) / maxGen;
-    const y = margin.top + plotH - ((pt.mean - minY) / (maxY - minY)) * plotH;
-    if (idx === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  // ВЫДЕЛЯЕМ ПОСЛЕДНЮЮ ТОЧКУ
-  const last = history[history.length - 1];
-  const lastX = margin.left + (plotW * last.gen) / maxGen;
-  const lastY = margin.top + plotH - ((last.mean - minY) / (maxY - minY)) * plotH;
-  ctx.beginPath();
-  ctx.fillStyle = '#e67e22';
-  ctx.arc(lastX, lastY, 4, 0, Math.PI * 2); // кружок толще линии
-  ctx.fill();
-
-  ctx.font = '12px system-ui';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(last.mean.toFixed(1), lastX, lastY - 20);
-
-  // Ось X (поколения)
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(margin.left, margin.top + plotH);
-  ctx.lineTo(margin.left + plotW, margin.top + plotH);
-  ctx.stroke();
-
-  ctx.fillStyle = '#333';
-  ctx.font = '12px system-ui';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const ticks = 5;
-  for (let i = 0; i <= ticks; i++) {
-    const g = Math.round((maxGen * i) / ticks);
-    const x = margin.left + (plotW * i) / ticks;
-    const y = margin.top + plotH + 4;
-    ctx.fillText(g, x, y);
-  }
-  ctx.textAlign = 'left';
-  ctx.fillText('Поколение', margin.left, h - 20);
-}
 
   // --- РИСОВАНИЕ: АЛЛЕЛИ ---
   const alleleCanvas = document.getElementById('alleleCanvas');
