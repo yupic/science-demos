@@ -93,9 +93,13 @@ License: MIT
       display: block;
       width: auto;
       max-width: 100%;
+      background: #fff;
+    }
+    .canvas-frame {
       border: 1px solid var(--border);
       border-radius: 4px;
       background: #fff;
+      overflow: hidden;
     }
     .note {
       font-size: 12px;
@@ -139,9 +143,6 @@ License: MIT
     }
     .allele-canvas {
       display: block;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: #fff;
     }
     .allele-legend-swatch {
       width: 14px;
@@ -224,13 +225,17 @@ License: MIT
     <div class="charts-column">
       <div class="card">
         <div class="card-title">Распределение длины шеи в текущем поколении</div>
-        <canvas id="histCanvas" width="640" height="260"></canvas>
+        <div class="canvas-frame">
+          <canvas id="histCanvas" width="640" height="260"></canvas>
+        </div>
         <div class="note">Показан гистограммой текущий колокол длин шеи (см).</div>
       </div>
 
       <div class="card">
         <div class="card-title">Динамика средней длины шеи</div>
-        <canvas id="timeCanvas" width="640" height="220"></canvas>
+        <div class="canvas-frame">
+          <canvas id="timeCanvas" width="640" height="220"></canvas>
+        </div>
         <div class="note">
           Линия — средняя длина шеи по поколениям. Пунктир — оптимум 150&nbsp;см.
           Чем ближе к нему, тем выше приспособленность.
@@ -240,7 +245,9 @@ License: MIT
 
     <div class="card allele-card">
       <div class="card-title">Распределение аллелей</div>
-      <canvas id="alleleCanvas" class="allele-canvas" width="220" height="520" tabindex="0" aria-label="Распределение аллелей"></canvas>
+      <div class="canvas-frame">
+        <canvas id="alleleCanvas" class="allele-canvas" width="220" height="520" tabindex="0" aria-label="Распределение аллелей"></canvas>
+      </div>
       <div class="note">Каждая строка — позиция генома; цвета показывают доли A/C/G/T в популяции. Кликните на строку, чтобы увидеть подробности.</div>
       <div class="allele-info" id="alleleInfo">Загружаем данные...</div>
     </div>
