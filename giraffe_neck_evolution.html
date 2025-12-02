@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 Interactive science demo.
 Part of the "science-demos" project.
 
@@ -179,7 +179,7 @@ License: MIT
 <div class="container">
   <h1>Эволюция длины шеи жирафа</h1>
   <p class="desc">
-    Модель: 100 генов (A/T/G/C), каждый даёт вклад от −5 до +5 см. Отбор стабилизирующий вокруг 200&nbsp;см.
+    Модель: 100 генов (A/T/G/C), каждый даёт вклад от −2 до +2 см. Отбор стабилизирующий вокруг 150&nbsp;см.
     На каждом поколении происходит в среднем заданное число мутаций (может быть меньше или больше за счёт случайности).
   </p>
 
@@ -192,7 +192,7 @@ License: MIT
       <select id="mutRateSelect">
         <option value="1">1</option>
         <option value="10">10</option>
-        <option value="100">100</option>
+        <option value="100" selected>100</option>
         <option value="1000">1000</option>
       </select>
     </label>
@@ -217,31 +217,31 @@ License: MIT
     <span class="value" id="minSpan">0</span> см
     &nbsp;|&nbsp; макс:
     <span class="value" id="maxSpan">0</span> см
-    &nbsp;|&nbsp; оптимум: <span class="value">200</span> см
+    &nbsp;|&nbsp; оптимум: <span class="value">150</span> см
   </div>
 
   <div class="charts-layout">
     <div class="charts-column">
       <div class="card">
         <div class="card-title">Распределение длины шеи в текущем поколении</div>
-        <canvas id="histCanvas" width="900" height="260"></canvas>
+        <canvas id="histCanvas" width="640" height="260"></canvas>
         <div class="note">Показан гистограммой текущий колокол длин шеи (см).</div>
       </div>
 
       <div class="card">
         <div class="card-title">Динамика средней длины шеи</div>
-        <canvas id="timeCanvas" width="900" height="220"></canvas>
+        <canvas id="timeCanvas" width="640" height="220"></canvas>
         <div class="note">
-          Линия — средняя длина шеи по поколениям. Пунктир — оптимум 200&nbsp;см.
+          Линия — средняя длина шеи по поколениям. Пунктир — оптимум 150&nbsp;см.
           Чем ближе к нему, тем выше приспособленность.
         </div>
       </div>
     </div>
 
     <div class="card allele-card">
-      <div class="card-title">Распределение аллелей (позиции 0–99)</div>
+      <div class="card-title">Распределение аллелей</div>
       <canvas id="alleleCanvas" class="allele-canvas" width="220" height="520" tabindex="0" aria-label="Распределение аллелей"></canvas>
-      <div class="note">Каждая строка — позиция генома; цвета показывают долю A/C/G/T. Кликните на строку, чтобы увидеть подробности.</div>
+      <div class="note">Каждая строка — позиция генома; цвета показывают доли A/C/G/T в популяции. Кликните на строку, чтобы увидеть подробности.</div>
       <div class="allele-info" id="alleleInfo">Загружаем данные...</div>
     </div>
   </div>
@@ -261,11 +261,11 @@ License: MIT
   };
 
   const BASE_NECK = 50;        // базовая длина
-  const OPTIMAL_NECK = 200;    // оптимум стабилизирующего отбора
+  const OPTIMAL_NECK = 150;    // оптимум стабилизирующего отбора
   const NECK_MIN_AXIS = 0;     // ось графиков по Y
-  const NECK_MAX_AXIS = 250;
+  const NECK_MAX_AXIS = 200;
 
-  const HIST_BINS = 300;
+  const HIST_BINS = NECK_MAX_AXIS;
   const BASE_INTERVAL_MS = 150;
   const ALLELE_LINE_THICKNESS = 5; // px
   const ALLELE_LINE_LENGTH = 200;  // px
@@ -319,7 +319,7 @@ License: MIT
 
     for (let pos = 0; pos < GENOME_LENGTH; pos++) {
       const posMap = {};
-      const effects = LETTERS.map(() => randInt(-1, 1));
+      const effects = LETTERS.map(() => randInt(-2, 2));
       //const effects = LETTERS.map(() => randomEffect());
       const sorted = effects.slice().sort((a, b) => a - b);
       LETTERS.forEach((letter, idx) => {
@@ -361,12 +361,6 @@ License: MIT
       sum += effectMap[i][letter];
     }
     return BASE_NECK + (sum - globalOffset);
-  }
-
-  function computeFitness_OLD(neck) {
-    const diff = neck - OPTIMAL_NECK;
-    const width = 1000; // чем больше, тем мягче отбор
-    return 1 / (1 + (diff * diff) / (width * width));
   }
 
   function computeFitness(neck) {
@@ -543,7 +537,7 @@ License: MIT
     ctx.font = '12px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const ticks = 5;
+    const ticks = 4;
     for (let i = 0; i <= ticks; i++) {
       const v = minX + ((maxX - minX) * i) / ticks;
       const x = margin.left + (plotW * i) / ticks;
@@ -584,7 +578,7 @@ License: MIT
     // Сетка по Y
     ctx.strokeStyle = '#e0e0e0';
     ctx.lineWidth = 1;
-    const gridYSteps = 5;
+    const gridYSteps = 4;
     for (let i = 0; i <= gridYSteps; i++) {
       const y = margin.top + (plotH * i) / gridYSteps;
       ctx.beginPath();
@@ -642,7 +636,7 @@ License: MIT
     ctx.font = '12px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const ticks = 5;
+    const ticks = 4;
     for (let i = 0; i <= ticks; i++) {
       const g = Math.round((maxGen * i) / ticks);
       const x = margin.left + (plotW * i) / ticks;
