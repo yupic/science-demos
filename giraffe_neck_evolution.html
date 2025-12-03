@@ -170,6 +170,19 @@ License: MIT
     .allele-info-row:last-child {
       margin-bottom: 0;
     }
+    .genome-card {
+      margin-top: 12px;
+    }
+    .genome-list {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+      white-space: pre;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--fg);
+    }
+    .genome-letter {
+      color: inherit;
+    }
     @media (max-width: 600px) {
       h1 { font-size: 20px; }
     }
@@ -257,6 +270,11 @@ License: MIT
       <div class="allele-info" id="alleleInfo">Загружаем данные...</div>
     </div>
   </div>
+
+  <div class="card genome-card">
+    <div class="card-title">Топ-10 особей с самой длинной шеей</div>
+    <div class="genome-list" id="topGenomes">Загружаем данные...</div>
+  </div>
 </div>
 
 <script>
@@ -284,6 +302,7 @@ License: MIT
   const ALLELE_MARKER_SIZE = ALLELE_LINE_THICKNESS;
   const ALLELE_MARKER_OFFSET = ALLELE_LINE_THICKNESS;
   const ALLELE_MARKER_COLOR = '#8e44ad';
+  const TOP_GENOME_COUNT = 10;
 
   const TRAIT_MODES = {
     POLYGENIC: 'polygenic',
@@ -298,6 +317,7 @@ License: MIT
   let history = [];            // [{ gen, mean, min, max }]
   let isRunning = false;
   let intervalId = null;
+  let individualIdCounter = 1;
 
   let globalOffset = 0;        // ожидаемый суммарный вклад генов для случайного генома
   let mutationRate = 10;       // ожидаемое число мутаций на поколение
@@ -393,6 +413,12 @@ License: MIT
     return BASE_NECK + (sum - globalOffset);
   }
 
+  function createIndividual(genome) {
+    const neck = computeNeck(genome);
+    const individual = { genome, neck, id: individualIdCounter++ };
+    return individual;
+  }
+
   function computeFitness(neck) {
     const diff = neck - OPTIMAL_NECK;
     const sigma = selectionSigma; // чем больше sigma, тем слабее отбор
@@ -465,8 +491,7 @@ License: MIT
       const mother = pop[momIdx];
       const father = pop[dadIdx];
       const genome = recombineGenomes(mother.genome, father.genome);
-      const neck = computeNeck(genome);
-      newPop[i] = { genome, neck };
+      newPop[i] = createIndividual(genome);
     }
 
     // применяем случайное число мутаций в этом поколении
@@ -766,6 +791,7 @@ License: MIT
   const sigmaValue = document.getElementById('sigmaValue');
   const speedValue = document.getElementById('speedValue');
   const alleleInfo = document.getElementById('alleleInfo');
+  const topGenomes = document.getElementById('topGenomes');
 
   let alleleInfoReady = false;
   let alleleInfoTitle = null;
@@ -883,12 +909,68 @@ License: MIT
     sdSpan.textContent = last.sd.toFixed(2);
   }
 
+  function colorizeGenome(genome) {
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < genome.length; i++) {
+      const letter = genome[i];
+      const span = document.createElement('span');
+      span.className = 'genome-letter';
+      span.style.color = ALLELE_COLORS[letter] || 'inherit';
+      span.textContent = letter;
+      frag.appendChild(span);
+    }
+    return frag;
+  }
+
+  function renderTopGenomes(pop) {
+    if (!pop || pop.length === 0) {
+      topGenomes.textContent = 'Нет данных';
+      return;
+    }
+
+    const sorted = pop.slice().sort((a, b) => {
+      if (b.neck !== a.neck) return b.neck - a.neck;
+      return a.id - b.id;
+    });
+    const top = sorted.slice(0, TOP_GENOME_COUNT);
+
+    const maxId = top[0]?.id || 0;
+    const idWidth = Math.max(3, String(maxId).length);
+
+    topGenomes.innerHTML = '';
+    top.forEach(ind => {
+      const row = document.createElement('div');
+      row.className = 'genome-row';
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+
+      const prefix = document.createElement('div');
+      prefix.textContent = `#${String(ind.id).padStart(idWidth, ' ')}: `;
+      prefix.style.whiteSpace = 'pre';
+      row.appendChild(prefix);
+
+      const genomeSpan = document.createElement('div');
+      genomeSpan.className = 'genome-letter-row';
+      genomeSpan.style.whiteSpace = 'pre';
+      genomeSpan.appendChild(colorizeGenome(ind.genome));
+      row.appendChild(genomeSpan);
+
+      const suffix = document.createElement('div');
+      suffix.textContent = `, ${ind.neck.toFixed(0)} см`;
+      suffix.style.whiteSpace = 'pre';
+      row.appendChild(suffix);
+
+      topGenomes.appendChild(row);
+    });
+  }
+
   function updateUI() {
     drawHistogram(population);
     drawTimeSeries();
     drawAlleleFrequencies(population);
     updateStatsUI();
     showAlleleInfo(selectedAllelePos);
+    renderTopGenomes(population);
   }
 
   // --- СИМУЛЯЦИЯ ---
@@ -901,6 +983,7 @@ License: MIT
     traitModeSelect.disabled = false;
     generation = 0;
     history = [];
+    individualIdCounter = 1;
     selectedAllelePos = 0;
     lastAlleleFreqs = [];
     traitMode = traitModeSelect.value === TRAIT_MODES.MONOGENIC ? TRAIT_MODES.MONOGENIC : TRAIT_MODES.POLYGENIC;
@@ -913,8 +996,7 @@ License: MIT
     population = new Array(POP_SIZE);
     for (let i = 0; i < POP_SIZE; i++) {
       const genome = randomInitialGenome();
-      const neck = computeNeck(genome);
-      population[i] = { genome, neck };
+      population[i] = createIndividual(genome);
     }
     recordStats();
     updateUI();
