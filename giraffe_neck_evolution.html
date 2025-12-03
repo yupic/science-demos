@@ -224,7 +224,8 @@ License: MIT
     <span class="value" id="minSpan">0</span> см
     &nbsp;|&nbsp; макс:
     <span class="value" id="maxSpan">0</span> см
-    &nbsp;|&nbsp; оптимум: <span class="value">150</span> см
+    &nbsp;|&nbsp; наблюдаемое SD:
+    <span class="value" id="sdSpan">0</span> см
   </div>
 
   <div class="charts-layout">
@@ -474,19 +475,27 @@ License: MIT
   }
 
   function computeStats(pop) {
-    const lengths = pop.map(p => p.neck);
-    let sum = 0;
+    let mean = 0;
+    let m2 = 0;
     let min = Infinity;
     let max = -Infinity;
-    for (const v of lengths) {
-      sum += v;
-      if (v < min) min = v;
-      if (v > max) max = v;
+    let count = 0;
+    for (const { neck } of pop) {
+      count += 1;
+      if (neck < min) min = neck;
+      if (neck > max) max = neck;
+      const delta = neck - mean;
+      mean += delta / count;
+      const delta2 = neck - mean;
+      m2 += delta * delta2;
     }
+    const variance = m2 / count;
+    const sd = Math.sqrt(variance);
     return {
-      mean: sum / lengths.length,
+      mean,
       min,
-      max
+      max,
+      sd
     };
   }
 
@@ -496,7 +505,8 @@ License: MIT
       gen: generation,
       mean: s.mean,
       min: s.min,
-      max: s.max
+      max: s.max,
+      sd: s.sd
     });
   }
 
@@ -745,6 +755,7 @@ License: MIT
   const meanSpan = document.getElementById('meanSpan');
   const minSpan = document.getElementById('minSpan');
   const maxSpan = document.getElementById('maxSpan');
+  const sdSpan = document.getElementById('sdSpan');
   const toggleBtn = document.getElementById('toggleBtn');
   const stepBtn = document.getElementById('stepBtn');
   const resetBtn = document.getElementById('resetBtn');
@@ -869,6 +880,7 @@ License: MIT
     meanSpan.textContent = last.mean.toFixed(1);
     minSpan.textContent = last.min.toFixed(1);
     maxSpan.textContent = last.max.toFixed(1);
+    sdSpan.textContent = last.sd.toFixed(2);
   }
 
   function updateUI() {
