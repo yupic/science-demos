@@ -908,16 +908,10 @@ License: MIT
   }
 
   function colorizeGenome(genome) {
-    const frag = document.createDocumentFragment();
-    for (let i = 0; i < genome.length; i++) {
-      const letter = genome[i];
-      const span = document.createElement('span');
-      span.className = 'genome-letter';
-      span.style.color = ALLELE_COLORS[letter] || 'inherit';
-      span.textContent = letter;
-      frag.appendChild(span);
-    }
-    return frag;
+    return genome
+      .split('')
+      .map(letter => `<span class="genome-letter" style="color:${ALLELE_COLORS[letter] || 'inherit'}">${letter}</span>`)
+      .join('');
   }
 
   function renderTopGenomes(pop) {
@@ -932,7 +926,7 @@ License: MIT
     });
     const top = sorted.slice(0, TOP_GENOME_COUNT);
 
-    topGenomes.innerHTML = '';
+    const frag = document.createDocumentFragment();
     top.forEach(ind => {
       const row = document.createElement('div');
       row.className = 'genome-row';
@@ -942,7 +936,7 @@ License: MIT
       const genomeSpan = document.createElement('div');
       genomeSpan.className = 'genome-letter-row';
       genomeSpan.style.whiteSpace = 'pre';
-      genomeSpan.appendChild(colorizeGenome(ind.genome));
+      genomeSpan.innerHTML = colorizeGenome(ind.genome);
       row.appendChild(genomeSpan);
 
       const suffix = document.createElement('div');
@@ -950,8 +944,10 @@ License: MIT
       suffix.style.whiteSpace = 'pre';
       row.appendChild(suffix);
 
-      topGenomes.appendChild(row);
+      frag.appendChild(row);
     });
+
+    topGenomes.replaceChildren(frag);
   }
 
   function updateUI() {
