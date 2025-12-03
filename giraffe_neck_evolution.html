@@ -123,7 +123,7 @@ License: MIT
     .slider-value {
       min-width: 42px;
       display: inline-block;
-      text-align: right;
+      text-align: left;
       color: var(--muted);
     }
     .charts-layout {
@@ -228,7 +228,6 @@ License: MIT
         <div class="canvas-frame">
           <canvas id="histCanvas" width="640" height="260"></canvas>
         </div>
-        <div class="note">Показан гистограммой текущий колокол длин шеи (см).</div>
       </div>
 
       <div class="card">
@@ -238,7 +237,6 @@ License: MIT
         </div>
         <div class="note">
           Линия — средняя длина шеи по поколениям. Пунктир — оптимум 150&nbsp;см.
-          Чем ближе к нему, тем выше приспособленность.
         </div>
       </div>
     </div>
@@ -524,13 +522,14 @@ License: MIT
     }
 
     const barWidth = plotW / binCount;
+    const rectWidth = barWidth - (barWidth >= 2 ? 1 : 0);
     ctx.fillStyle = '#2c7be5';
     for (let i = 0; i < binCount; i++) {
       const count = bins[i];
       const barHeight = (count / maxBin) * plotH;
       const x = margin.left + i * barWidth;
       const y = margin.top + plotH - barHeight;
-      ctx.fillRect(x, y, barWidth - 1, barHeight);
+      ctx.fillRect(x, y, rectWidth, barHeight);
     }
 
     ctx.strokeStyle = '#000';
@@ -951,10 +950,14 @@ License: MIT
   function resizeCanvases() {
     [histCanvas, timeCanvas].forEach(canvas => {
       const rect = canvas.getBoundingClientRect();
+      const cssWidth = canvas.clientWidth || rect.width;
+      const cssHeight = canvas.clientHeight || rect.height;
       if (rect.width > 0) {
         const ratio = window.devicePixelRatio || 1;
-        canvas.width = rect.width * ratio;
-        canvas.height = rect.height * ratio;
+        canvas.style.width = `${cssWidth}px`;
+        canvas.style.height = `${cssHeight}px`;
+        canvas.width = Math.round(rect.width * ratio);
+        canvas.height = Math.round(rect.height * ratio);
         const ctx = canvas.getContext('2d');
         ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       }
