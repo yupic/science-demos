@@ -170,6 +170,19 @@ License: MIT
     .allele-info-row:last-child {
       margin-bottom: 0;
     }
+    .genome-card {
+      margin-top: 12px;
+    }
+    .genome-list {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+      white-space: pre;
+      font-size: 11px;
+      line-height: 1.4;
+      color: var(--fg);
+    }
+    .genome-letter {
+      color: inherit;
+    }
     @media (max-width: 600px) {
       h1 { font-size: 20px; }
     }
@@ -246,6 +259,11 @@ License: MIT
           Линия — средняя длина шеи по поколениям. Пунктир — оптимум 150&nbsp;см.
         </div>
       </div>
+
+      <div class="card genome-card">
+        <div class="card-title">Топ-10 особей с самой длинной шеей</div>
+        <div class="genome-list" id="topGenomes">Загружаем данные...</div>
+      </div>
     </div>
 
     <div class="card allele-card">
@@ -284,6 +302,7 @@ License: MIT
   const ALLELE_MARKER_SIZE = ALLELE_LINE_THICKNESS;
   const ALLELE_MARKER_OFFSET = ALLELE_LINE_THICKNESS;
   const ALLELE_MARKER_COLOR = '#8e44ad';
+  const TOP_GENOME_COUNT = 10;
 
   const TRAIT_MODES = {
     POLYGENIC: 'polygenic',
@@ -393,6 +412,11 @@ License: MIT
     return BASE_NECK + (sum - globalOffset);
   }
 
+  function createIndividual(genome) {
+    const neck = computeNeck(genome);
+    return { genome, neck };
+  }
+
   function computeFitness(neck) {
     const diff = neck - OPTIMAL_NECK;
     const sigma = selectionSigma; // чем больше sigma, тем слабее отбор
@@ -465,8 +489,7 @@ License: MIT
       const mother = pop[momIdx];
       const father = pop[dadIdx];
       const genome = recombineGenomes(mother.genome, father.genome);
-      const neck = computeNeck(genome);
-      newPop[i] = { genome, neck };
+      newPop[i] = createIndividual(genome);
     }
 
     // применяем случайное число мутаций в этом поколении
@@ -766,6 +789,7 @@ License: MIT
   const sigmaValue = document.getElementById('sigmaValue');
   const speedValue = document.getElementById('speedValue');
   const alleleInfo = document.getElementById('alleleInfo');
+  const topGenomes = document.getElementById('topGenomes');
 
   let alleleInfoReady = false;
   let alleleInfoTitle = null;
@@ -883,12 +907,56 @@ License: MIT
     sdSpan.textContent = last.sd.toFixed(2);
   }
 
+  function colorizeGenome(genome) {
+    return genome
+      .split('')
+      .map(letter => `<span class="genome-letter" style="color:${ALLELE_COLORS[letter] || 'inherit'}">${letter}</span>`)
+      .join('');
+  }
+
+  function renderTopGenomes(pop) {
+    if (!pop || pop.length === 0) {
+      topGenomes.textContent = 'Нет данных';
+      return;
+    }
+
+    const sorted = pop.slice().sort((a, b) => {
+      if (b.neck !== a.neck) return b.neck - a.neck;
+      return a.genome.localeCompare(b.genome);
+    });
+    const top = sorted.slice(0, TOP_GENOME_COUNT);
+
+    const frag = document.createDocumentFragment();
+    top.forEach(ind => {
+      const row = document.createElement('div');
+      row.className = 'genome-row';
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+
+      const genomeSpan = document.createElement('div');
+      genomeSpan.className = 'genome-letter-row';
+      genomeSpan.style.whiteSpace = 'pre';
+      genomeSpan.innerHTML = colorizeGenome(ind.genome);
+      row.appendChild(genomeSpan);
+
+      const suffix = document.createElement('div');
+      suffix.textContent = `, ${ind.neck.toFixed(0)} см`;
+      suffix.style.whiteSpace = 'pre';
+      row.appendChild(suffix);
+
+      frag.appendChild(row);
+    });
+
+    topGenomes.replaceChildren(frag);
+  }
+
   function updateUI() {
     drawHistogram(population);
     drawTimeSeries();
     drawAlleleFrequencies(population);
     updateStatsUI();
     showAlleleInfo(selectedAllelePos);
+    renderTopGenomes(population);
   }
 
   // --- СИМУЛЯЦИЯ ---
@@ -913,8 +981,7 @@ License: MIT
     population = new Array(POP_SIZE);
     for (let i = 0; i < POP_SIZE; i++) {
       const genome = randomInitialGenome();
-      const neck = computeNeck(genome);
-      population[i] = { genome, neck };
+      population[i] = createIndividual(genome);
     }
     recordStats();
     updateUI();
