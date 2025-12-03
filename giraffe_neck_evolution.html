@@ -176,7 +176,7 @@ License: MIT
     .genome-list {
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
       white-space: pre;
-      font-size: 13px;
+      font-size: 11px;
       line-height: 1.4;
       color: var(--fg);
     }
@@ -259,6 +259,11 @@ License: MIT
           Линия — средняя длина шеи по поколениям. Пунктир — оптимум 150&nbsp;см.
         </div>
       </div>
+
+      <div class="card genome-card">
+        <div class="card-title">Топ-10 особей с самой длинной шеей</div>
+        <div class="genome-list" id="topGenomes">Загружаем данные...</div>
+      </div>
     </div>
 
     <div class="card allele-card">
@@ -269,11 +274,6 @@ License: MIT
       <div class="note">Каждая строка — позиция генома; цвета показывают доли A/C/G/T в популяции. Кликните на строку, чтобы увидеть подробности.</div>
       <div class="allele-info" id="alleleInfo">Загружаем данные...</div>
     </div>
-  </div>
-
-  <div class="card genome-card">
-    <div class="card-title">Топ-10 особей с самой длинной шеей</div>
-    <div class="genome-list" id="topGenomes">Загружаем данные...</div>
   </div>
 </div>
 
