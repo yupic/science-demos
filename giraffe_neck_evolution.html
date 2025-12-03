@@ -113,7 +113,6 @@ License: MIT
       font-size: 13px;
     }
     .mut-label input, .mut-label select {
-      width: 72px;
       padding: 4px 6px;
       font-size: 13px;
     }
@@ -188,6 +187,13 @@ License: MIT
     <button id="toggleBtn">Старт</button>
     <button id="stepBtn">Шаг (1 поколение)</button>
     <button id="resetBtn">Сбросить</button>
+    <label class="mut-label">
+      Признак:
+      <select id="traitModeSelect">
+        <option value="polygenic" selected>Полигенный</option>
+        <option value="monogenic">Моногенный</option>
+      </select>
+    </label>
     <label class="mut-label">
       Мутации/поколение:
       <select id="mutRateSelect">
@@ -278,6 +284,11 @@ License: MIT
   const ALLELE_MARKER_OFFSET = ALLELE_LINE_THICKNESS;
   const ALLELE_MARKER_COLOR = '#8e44ad';
 
+  const TRAIT_MODES = {
+    POLYGENIC: 'polygenic',
+    MONOGENIC: 'monogenic'
+  };
+
   // --- СОСТОЯНИЕ ---
   let effectMap = [];          // [позиция][буква] -> вклад в см (−5..5)
   let allowedInitial = [];     // [позиция] -> Set(букв), доступных в начальной популяции
@@ -293,6 +304,7 @@ License: MIT
   let stepIntervalMs = BASE_INTERVAL_MS; // скорость симуляции
   let selectedAllelePos = 0;
   let lastAlleleFreqs = [];
+  let traitMode = TRAIT_MODES.POLYGENIC;
 
   // --- ВСПОМОГАТЕЛЬНОЕ ---
   function randInt(min, max) {
@@ -324,16 +336,28 @@ License: MIT
 
     for (let pos = 0; pos < GENOME_LENGTH; pos++) {
       const posMap = {};
-      const effects = LETTERS.map(() => randInt(-2, 2));
-      //const effects = LETTERS.map(() => randomEffect());
-      const sorted = effects.slice().sort((a, b) => a - b);
-      LETTERS.forEach((letter, idx) => {
-        posMap[letter] = sorted[idx];
-      });
+
+      if (traitMode === TRAIT_MODES.MONOGENIC) {
+        posMap['A'] = 0;
+        const mutantLetters = LETTERS.filter(letter => letter !== 'A');
+        const effects = mutantLetters.map(() => randInt(-2, 2));
+        const sorted = effects.slice().sort((a, b) => a - b);
+        mutantLetters.forEach((letter, idx) => {
+          posMap[letter] = sorted[idx];
+        });
+        allowedInitial[pos] = new Set(['A']);
+      } else {
+        const effects = LETTERS.map(() => randInt(-2, 2));
+        const sorted = effects.slice().sort((a, b) => a - b);
+        LETTERS.forEach((letter, idx) => {
+          posMap[letter] = sorted[idx];
+        });
+        const shuffledLetters = shuffle(LETTERS.slice());
+        // для каждой позиции выбираем ровно 2 стартовых аллеля
+        allowedInitial[pos] = new Set([shuffledLetters[0], shuffledLetters[1]]);
+      }
+
       effectMap[pos] = posMap;
-      const shuffledLetters = shuffle(LETTERS.slice());
-      // для каждой позиции выбираем ровно 2 стартовых аллеля
-      allowedInitial[pos] = new Set([shuffledLetters[0], shuffledLetters[1]]);
     }
 
     globalOffset = 0;
@@ -724,6 +748,7 @@ License: MIT
   const toggleBtn = document.getElementById('toggleBtn');
   const stepBtn = document.getElementById('stepBtn');
   const resetBtn = document.getElementById('resetBtn');
+  const traitModeSelect = document.getElementById('traitModeSelect');
   const mutRateSelect = document.getElementById('mutRateSelect');
   const sigmaSlider = document.getElementById('sigmaSlider');
   const speedSlider = document.getElementById('speedSlider');
@@ -861,10 +886,12 @@ License: MIT
       clearInterval(intervalId);
       intervalId = null;
     }
+    traitModeSelect.disabled = false;
     generation = 0;
     history = [];
     selectedAllelePos = 0;
     lastAlleleFreqs = [];
+    traitMode = traitModeSelect.value === TRAIT_MODES.MONOGENIC ? TRAIT_MODES.MONOGENIC : TRAIT_MODES.POLYGENIC;
     initGenetics();
 
     updateMutationFromSelect();
@@ -893,6 +920,7 @@ License: MIT
     if (isRunning) return;
     isRunning = true;
     toggleBtn.textContent = 'Пауза';
+    traitModeSelect.disabled = true;
     intervalId = setInterval(stepSimulation, stepIntervalMs);
   }
 
@@ -900,6 +928,7 @@ License: MIT
     if (!isRunning) return;
     isRunning = false;
     toggleBtn.textContent = 'Старт';
+    traitModeSelect.disabled = false;
     if (intervalId !== null) {
       clearInterval(intervalId);
       intervalId = null;
@@ -919,6 +948,11 @@ License: MIT
   });
 
   resetBtn.addEventListener('click', () => {
+    initSimulation();
+  });
+
+  traitModeSelect.addEventListener('change', () => {
+    traitMode = traitModeSelect.value === TRAIT_MODES.MONOGENIC ? TRAIT_MODES.MONOGENIC : TRAIT_MODES.POLYGENIC;
     initSimulation();
   });
 
