@@ -249,7 +249,7 @@ License: MIT
     <span class="value" id="minSpan">0</span> см
     &nbsp;|&nbsp; макс:
     <span class="value" id="maxSpan">0</span> см
-    &nbsp;|&nbsp; наблюдаемое SD:
+    &nbsp;|&nbsp; SD:
     <span class="value" id="sdSpan">0</span> см
   </div>
 
@@ -258,7 +258,7 @@ License: MIT
       <div class="card">
         <div class="card-title">Распределение длины шеи в текущем поколении</div>
         <div class="canvas-frame">
-          <canvas id="histCanvas" width="640" height="240"></canvas>
+          <canvas id="histCanvas" width="640" height="200"></canvas>
         </div>
       </div>
 
@@ -964,6 +964,7 @@ License: MIT
       const suffix = document.createElement('div');
       suffix.textContent = ` ${ind.neck.toFixed(0)} см`;
       suffix.style.whiteSpace = 'pre';
+      suffix.style.minWidth = '7ch';
       row.appendChild(suffix);
 
       frag.appendChild(row);
