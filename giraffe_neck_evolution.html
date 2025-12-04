@@ -945,18 +945,21 @@ License: MIT
       return;
     }
 
-    const sorted = pop.slice().sort((a, b) => {
-      if (b.neck !== a.neck) return b.neck - a.neck;
-      return a.genome.localeCompare(b.genome);
-    });
+    const indexed = pop
+      .map((ind, idx) => ({ ...ind, index: idx }))
+      .sort((a, b) => {
+        if (b.neck !== a.neck) return b.neck - a.neck;
+        const genomeCmp = a.genome.localeCompare(b.genome);
+        if (genomeCmp !== 0) return genomeCmp;
+        return a.index - b.index;
+      });
 
-    const topLongest = sorted.slice(0, TOP_LONG_GENOMES);
-    const shortestCandidates = sorted.slice(-TOP_SHORT_GENOMES);
-    const seen = new Set(topLongest.map(ind => ind.genome + ':' + ind.neck));
+    const topLongest = indexed.slice(0, TOP_LONG_GENOMES);
+    const shortestCandidates = indexed.slice(-TOP_SHORT_GENOMES);
+    const seen = new Set(topLongest.map(ind => ind.index));
     const topShortest = shortestCandidates.filter(ind => {
-      const key = ind.genome + ':' + ind.neck;
-      if (seen.has(key)) return false;
-      seen.add(key);
+      if (seen.has(ind.index)) return false;
+      seen.add(ind.index);
       return true;
     });
 
