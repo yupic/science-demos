@@ -273,7 +273,7 @@ License: MIT
       </div>
 
       <div class="card genome-card">
-        <div class="card-title">Топ-10 особей с самой длинной шеей</div>
+        <div class="card-title">Топ-5 длинных и 5 коротких особей</div>
         <div class="genome-list" id="topGenomes">Загружаем данные...</div>
       </div>
     </div>
@@ -320,7 +320,8 @@ License: MIT
   const ALLELE_MARKER_SIZE = ALLELE_LINE_THICKNESS;
   const ALLELE_MARKER_OFFSET = ALLELE_LINE_THICKNESS;
   const ALLELE_MARKER_COLOR = '#8e44ad';
-  const TOP_GENOME_COUNT = 10;
+  const TOP_LONG_GENOMES = 5;
+  const TOP_SHORT_GENOMES = 5;
 
   const TRAIT_MODES = {
     POLYGENIC: 'polygenic',
@@ -948,10 +949,21 @@ License: MIT
       if (b.neck !== a.neck) return b.neck - a.neck;
       return a.genome.localeCompare(b.genome);
     });
-    const top = sorted.slice(0, TOP_GENOME_COUNT);
+
+    const topLongest = sorted.slice(0, TOP_LONG_GENOMES);
+    const shortestCandidates = sorted.slice(-TOP_SHORT_GENOMES);
+    const seen = new Set(topLongest.map(ind => ind.genome + ':' + ind.neck));
+    const topShortest = shortestCandidates.filter(ind => {
+      const key = ind.genome + ':' + ind.neck;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const combined = topLongest.concat(topShortest);
 
     const frag = document.createDocumentFragment();
-    top.forEach(ind => {
+    combined.forEach(ind => {
       const row = document.createElement('div');
       row.className = 'genome-row';
       row.style.display = 'flex';
