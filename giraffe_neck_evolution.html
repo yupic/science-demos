@@ -289,7 +289,7 @@ License: MIT
   </div>
 </div>
 <div style="margin-bottom:10px; font-size:12px; color:#999; text-align:center;">
-  © science-demos • MIT License •
+  © autism_science • MIT License •
   <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener" style="color:#999;">GitHub</a> •
   <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener" style="color:#999;">YouTube</a> •
   <a href="https://t.me/autism_science" target="_blank" rel="noopener" style="color:#999;">Telegram</a>
@@ -737,10 +737,12 @@ License: MIT
   function ensureAlleleCanvasSize() {
     const width = ALLELE_MARGIN * 2 + ALLELE_LINE_LENGTH;
     const height = ALLELE_MARGIN * 2 + GENOME_LENGTH * ALLELE_LINE_THICKNESS;
-    alleleCanvas.width = width;
-    alleleCanvas.height = height;
+    const ratio = window.devicePixelRatio || 1;
+    alleleCanvas.width = Math.round(width * ratio);
+    alleleCanvas.height = Math.round(height * ratio);
     alleleCanvas.style.width = `${width}px`;
     alleleCanvas.style.height = `${height}px`;
+    alleleCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
 
   function computeAlleleFrequencies(pop) {
@@ -763,7 +765,6 @@ License: MIT
   }
 
   function drawAlleleFrequencies(pop) {
-    ensureAlleleCanvasSize();
     const freqs = computeAlleleFrequencies(pop);
     lastAlleleFreqs = freqs;
     alleleCtx.clearRect(0, 0, alleleCanvas.width, alleleCanvas.height);
@@ -787,8 +788,10 @@ License: MIT
       alleleCtx.fillRect(leftX, markerY, ALLELE_MARKER_SIZE, ALLELE_MARKER_SIZE);
       alleleCtx.fillRect(rightX, markerY, ALLELE_MARKER_SIZE, ALLELE_MARKER_SIZE);
     }
+
+    alleleCtx.lineWidth = 1;
     alleleCtx.strokeStyle = '#ccc';
-    alleleCtx.strokeRect(ALLELE_MARGIN, ALLELE_MARGIN, ALLELE_LINE_LENGTH, GENOME_LENGTH * ALLELE_LINE_THICKNESS);
+    alleleCtx.strokeRect(ALLELE_MARGIN - 0.5, ALLELE_MARGIN - 0.5, ALLELE_LINE_LENGTH + 1, GENOME_LENGTH * ALLELE_LINE_THICKNESS + 1);
     return freqs;
   }
 
@@ -1094,6 +1097,7 @@ License: MIT
         ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       }
     });
+    ensureAlleleCanvasSize();
     updateUI();
   }
   window.addEventListener('resize', resizeCanvases);
