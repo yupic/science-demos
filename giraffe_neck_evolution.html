@@ -137,7 +137,7 @@ License: MIT
       max-width: 100%;
     }
     .allele-card {
-      width: 240px;
+      width: 248px;
       flex-shrink: 0;
     }
     .allele-canvas {
@@ -176,12 +176,24 @@ License: MIT
     .genome-list {
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
       white-space: pre;
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.4;
       color: var(--fg);
     }
     .genome-letter {
-      color: inherit;
+      color: #00f;
+    }
+    .genome-letter-A {
+      color: #fff;
+    }
+    .genome-letter-C {
+      color: #000;
+    }
+    .genome-letter-G {
+      color: #ff0;
+    }
+    .genome-letter-T {
+      color: #00f;
     }
     @media (max-width: 600px) {
       h1 { font-size: 20px; }
@@ -246,14 +258,14 @@ License: MIT
       <div class="card">
         <div class="card-title">Распределение длины шеи в текущем поколении</div>
         <div class="canvas-frame">
-          <canvas id="histCanvas" width="640" height="260"></canvas>
+          <canvas id="histCanvas" width="640" height="240"></canvas>
         </div>
       </div>
 
       <div class="card">
         <div class="card-title">Динамика средней длины шеи</div>
         <div class="canvas-frame">
-          <canvas id="timeCanvas" width="640" height="220"></canvas>
+          <canvas id="timeCanvas" width="640" height="200"></canvas>
         </div>
         <div class="note">
           Линия — средняя длина шеи по поколениям. Пунктир — оптимум 150&nbsp;см.
@@ -544,7 +556,7 @@ License: MIT
     const h = rect.height;
     ctx.clearRect(0, 0, w, h);
 
-    const margin = { left: 20, right: 20, top: 10, bottom: 40 };
+    const margin = { left: 20, right: 20, top: 10, bottom: 20 };
     const plotW = w - margin.left - margin.right;
     const plotH = h - margin.top - margin.bottom;
 
@@ -608,7 +620,7 @@ License: MIT
       ctx.fillText(Math.round(v), x, y);
     }
     ctx.textAlign = 'left';
-    ctx.fillText('Длина шеи, см', margin.left, h - 20);
+    ctx.fillText('Длина шеи, см', margin.left + 30, margin.top + plotH + 4 /*h - 30*/);
   }
 
   // --- РИСОВАНИЕ: ВРЕМЯ ---
@@ -624,7 +636,7 @@ License: MIT
 
     if (history.length === 0) return;
 
-    const margin = { left: 20, right: 20, top: 10, bottom: 40 };
+    const margin = { left: 20, right: 20, top: 0, bottom: 20 };
     const plotW = w - margin.left - margin.right;
     const plotH = h - margin.top - margin.bottom;
 
@@ -706,8 +718,9 @@ License: MIT
       const y = margin.top + plotH + 4;
       ctx.fillText(g, x, y);
     }
+
     ctx.textAlign = 'left';
-    ctx.fillText('Поколение', margin.left, h - 20);
+    ctx.fillText('Поколение', margin.left + 30, margin.top + plotH + 4 /*h - 20*/);
   }
 
   // --- РИСОВАНИЕ: АЛЛЕЛИ ---
@@ -910,7 +923,7 @@ License: MIT
   function colorizeGenome(genome) {
     return genome
       .split('')
-      .map(letter => `<span class="genome-letter" style="color:${ALLELE_COLORS[letter] || 'inherit'}">${letter}</span>`)
+      .map(letter => `<span class="genome-letter-${letter}" style="background-color:${ALLELE_COLORS[letter] || 'inherit'}">${letter}</span>`)
       .join('');
   }
 
@@ -940,7 +953,7 @@ License: MIT
       row.appendChild(genomeSpan);
 
       const suffix = document.createElement('div');
-      suffix.textContent = `, ${ind.neck.toFixed(0)} см`;
+      suffix.textContent = ` ${ind.neck.toFixed(0)} см`;
       suffix.style.whiteSpace = 'pre';
       row.appendChild(suffix);
 
