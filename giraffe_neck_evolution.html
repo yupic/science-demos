@@ -301,6 +301,7 @@ License: MIT
   const POP_SIZE = 10000;
   const GENOME_LENGTH = 100; // 100 букв A/T/G/C
   const LETTERS = ['A', 'C', 'G', 'T'];
+  const LETTER_INDEX = { A: 0, C: 1, G: 2, T: 3 };
   const ALLELE_COLORS = {
     A: '#e74c3c',
     C: '#f1c40f',
@@ -443,11 +444,20 @@ License: MIT
   }
 
   function recombineGenomes(g1, g2) {
-    const childChars = new Array(GENOME_LENGTH);
-    for (let i = 0; i < GENOME_LENGTH; i++) {
-      childChars[i] = Math.random() < 0.5 ? g1[i] : g2[i];
+    const len = g1.length;
+    const child = new Array(len);
+    let i = 0;
+
+    while (i < len) {
+      let bits = (Math.random() * 0x100000000) >>> 0;
+
+      for (let k = 0; k < 32 && i < len; k++, i++) {
+        child[i] = (bits & 1) ? g1[i] : g2[i];
+        bits >>>= 1;
+      }
     }
-    return childChars.join('');
+
+    return child.join('');
   }
 
   function chooseParentIndex(cumFitness) {
@@ -747,22 +757,33 @@ License: MIT
   }
 
   function computeAlleleFrequencies(pop) {
-    if (!pop || pop.length === 0) return [];
-    const counts = Array.from({ length: GENOME_LENGTH }, () => ({ A: 0, C: 0, G: 0, T: 0 }));
-    for (const ind of pop) {
-      const genome = ind.genome;
-      for (let i = 0; i < GENOME_LENGTH; i++) {
-        counts[i][genome[i]]++;
+    const total = pop.length;
+    if (!total) return [];
+
+    const genomeLen = GENOME_LENGTH;
+    const counts = Array.from({ length: genomeLen }, () => [0, 0, 0, 0]);
+
+    for (let p = 0; p < total; p++) {
+      const genome = pop[p].genome;
+      for (let i = 0; i < genomeLen; i++) {
+        counts[i][LETTER_INDEX[genome[i]]]++;
       }
     }
-    const total = pop.length || 1;
-    return counts.map(posCounts => {
-      const freqs = {};
-      LETTERS.forEach(letter => {
-        freqs[letter] = (posCounts[letter] / total) * 100;
-      });
-      return freqs;
-    });
+
+    const scale = 100 / total;
+    const result = new Array(genomeLen);
+
+    for (let i = 0; i < genomeLen; i++) {
+      const c = counts[i];
+      result[i] = {
+        A: c[0] * scale,
+        C: c[1] * scale,
+        G: c[2] * scale,
+        T: c[3] * scale,
+      };
+    }
+
+    return result;
   }
 
   function drawAlleleFrequencies(pop) {
