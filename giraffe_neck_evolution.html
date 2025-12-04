@@ -251,6 +251,10 @@ License: MIT
     <span class="value" id="maxSpan">0</span> см
     &nbsp;|&nbsp; SD:
     <span class="value" id="sdSpan">0</span> см
+    <span id="speedWrapper" style="display:none;">
+      &nbsp;|&nbsp; скорость:
+      <span class="value" id="speedSpan"></span> покол/с
+    </span>
   </div>
 
   <div class="charts-layout">
@@ -327,6 +331,8 @@ License: MIT
     MONOGENIC: 'monogenic'
   };
 
+  const SPEED_SAMPLE_LIMIT = 30;
+
   // --- СОСТОЯНИЕ ---
   let effectMap = [];          // [позиция][буква] -> вклад в см (−5..5)
   let allowedInitial = [];     // [позиция] -> Set(букв), доступных в начальной популяции
@@ -335,6 +341,10 @@ License: MIT
   let history = [];            // [{ gen, mean, min, max }]
   let isRunning = false;
   let intervalId = null;
+  let hasSimulationRun = false;
+  let lastStepTimestamp = null;
+  let effectiveSpeed = null;
+  let speedSamples = [];
 
   let globalOffset = 0;        // ожидаемый суммарный вклад генов для случайного генома
   let mutationRate = 10;       // ожидаемое число мутаций на поколение
@@ -812,6 +822,8 @@ License: MIT
   const speedValue = document.getElementById('speedValue');
   const alleleInfo = document.getElementById('alleleInfo');
   const topGenomes = document.getElementById('topGenomes');
+  const speedWrapper = document.getElementById('speedWrapper');
+  const speedSpan = document.getElementById('speedSpan');
 
   let alleleInfoReady = false;
   let alleleInfoTitle = null;
@@ -920,6 +932,30 @@ License: MIT
     }
   }
 
+  function resetSpeedTracking() {
+    hasSimulationRun = false;
+    lastStepTimestamp = null;
+    effectiveSpeed = null;
+    speedSamples = [];
+  }
+
+  function recordEffectiveSpeed(nowMs) {
+    if (lastStepTimestamp !== null) {
+      const deltaMs = nowMs - lastStepTimestamp;
+      if (deltaMs > 0) {
+        const instSpeed = 1000 / deltaMs;
+        speedSamples.push(instSpeed);
+        if (speedSamples.length > SPEED_SAMPLE_LIMIT) {
+          speedSamples.shift();
+        }
+        const sum = speedSamples.reduce((acc, val) => acc + val, 0);
+        effectiveSpeed = sum / speedSamples.length;
+      }
+    }
+    lastStepTimestamp = nowMs;
+    hasSimulationRun = true;
+  }
+
   function updateStatsUI() {
     const last = history[history.length - 1];
     genSpan.textContent = last.gen;
@@ -927,6 +963,17 @@ License: MIT
     minSpan.textContent = last.min.toFixed(1);
     maxSpan.textContent = last.max.toFixed(1);
     sdSpan.textContent = last.sd.toFixed(2);
+    if (hasSimulationRun) {
+      speedWrapper.style.display = '';
+      if (effectiveSpeed !== null) {
+        speedSpan.textContent = effectiveSpeed.toFixed(2);
+      } else {
+        speedSpan.textContent = '—';
+      }
+    } else {
+      speedWrapper.style.display = 'none';
+      speedSpan.textContent = '';
+    }
   }
 
   function colorizeGenome(genome) {
@@ -1005,6 +1052,7 @@ License: MIT
     selectedAllelePos = 0;
     lastAlleleFreqs = [];
     traitMode = traitModeSelect.value === TRAIT_MODES.MONOGENIC ? TRAIT_MODES.MONOGENIC : TRAIT_MODES.POLYGENIC;
+    resetSpeedTracking();
     initGenetics();
 
     updateMutationFromSelect();
@@ -1022,6 +1070,7 @@ License: MIT
   }
 
   function stepSimulation() {
+    recordEffectiveSpeed(performance.now());
     population = makeNextGeneration(population);
     generation++;
     recordStats();
@@ -1030,6 +1079,8 @@ License: MIT
 
   function startSimulation() {
     if (isRunning) return;
+    lastStepTimestamp = performance.now();
+    speedSamples = [];
     isRunning = true;
     toggleBtn.textContent = 'Пауза';
     traitModeSelect.disabled = true;
@@ -1039,6 +1090,8 @@ License: MIT
   function stopSimulation() {
     if (!isRunning) return;
     isRunning = false;
+    lastStepTimestamp = null;
+    speedSamples = [];
     toggleBtn.textContent = 'Старт';
     traitModeSelect.disabled = false;
     if (intervalId !== null) {
