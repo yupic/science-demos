@@ -932,7 +932,9 @@ License: MIT
   function colorizeGenome(genome) {
     return genome
       .split('')
-      .map(letter => `<span class="genome-letter-${letter}" style="background-color:${ALLELE_COLORS[letter] || 'inherit'}">${letter}</span>`)
+      .map((letter, idx) =>
+        `<span class="genome-letter-${letter}" data-pos="${idx}" style="background-color:${ALLELE_COLORS[letter] || 'inherit'}; cursor: pointer;">${letter}</span>`
+      )
       .join('');
   }
 
@@ -959,6 +961,14 @@ License: MIT
       genomeSpan.className = 'genome-letter-row';
       genomeSpan.style.whiteSpace = 'pre';
       genomeSpan.innerHTML = colorizeGenome(ind.genome);
+      genomeSpan.addEventListener('click', (evt) => {
+        const target = evt.target;
+        const pos = Number.parseInt(target.dataset?.pos, 10);
+        if (!Number.isNaN(pos)) {
+          selectAllele(pos);
+          alleleCanvas.focus({ preventScroll: true });
+        }
+      });
       row.appendChild(genomeSpan);
 
       const suffix = document.createElement('div');
