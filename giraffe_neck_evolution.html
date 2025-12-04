@@ -251,10 +251,12 @@ License: MIT
     <span class="value" id="maxSpan">0</span> см
     &nbsp;|&nbsp; SD:
     <span class="value" id="sdSpan">0</span> см
-    <span id="speedWrapper" style="display:none;">
-      &nbsp;|&nbsp; скорость:
-      <span class="value" id="speedSpan"></span> покол/с
-    </span>
+    &nbsp;|&nbsp; скорость:
+    <span class="value" id="speedSpan">0</span> покол/с
+    &nbsp;|&nbsp; расчёт поколения:
+    <span class="value" id="computeSpan">0</span> мс
+    &nbsp;|&nbsp; обновление экрана:
+    <span class="value" id="renderSpan">0</span> мс
   </div>
 
   <div class="charts-layout">
@@ -332,6 +334,7 @@ License: MIT
   };
 
   const SPEED_SAMPLE_LIMIT = 30;
+  const TIMING_SAMPLE_LIMIT = 30;
 
   // --- СОСТОЯНИЕ ---
   let effectMap = [];          // [позиция][буква] -> вклад в см (−5..5)
@@ -341,10 +344,13 @@ License: MIT
   let history = [];            // [{ gen, mean, min, max }]
   let isRunning = false;
   let intervalId = null;
-  let hasSimulationRun = false;
   let lastStepTimestamp = null;
-  let effectiveSpeed = null;
+  let effectiveSpeed = 0;
   let speedSamples = [];
+  let computeSamples = [];
+  let renderSamples = [];
+  let avgComputeMs = 0;
+  let avgRenderMs = 0;
 
   let globalOffset = 0;        // ожидаемый суммарный вклад генов для случайного генома
   let mutationRate = 10;       // ожидаемое число мутаций на поколение
@@ -822,8 +828,9 @@ License: MIT
   const speedValue = document.getElementById('speedValue');
   const alleleInfo = document.getElementById('alleleInfo');
   const topGenomes = document.getElementById('topGenomes');
-  const speedWrapper = document.getElementById('speedWrapper');
   const speedSpan = document.getElementById('speedSpan');
+  const computeSpan = document.getElementById('computeSpan');
+  const renderSpan = document.getElementById('renderSpan');
 
   let alleleInfoReady = false;
   let alleleInfoTitle = null;
@@ -932,11 +939,14 @@ License: MIT
     }
   }
 
-  function resetSpeedTracking() {
-    hasSimulationRun = false;
+  function resetTimingTracking() {
     lastStepTimestamp = null;
-    effectiveSpeed = null;
+    effectiveSpeed = 0;
     speedSamples = [];
+    computeSamples = [];
+    renderSamples = [];
+    avgComputeMs = 0;
+    avgRenderMs = 0;
   }
 
   function recordEffectiveSpeed(nowMs) {
@@ -953,7 +963,22 @@ License: MIT
       }
     }
     lastStepTimestamp = nowMs;
-    hasSimulationRun = true;
+  }
+
+  function recordTimingSamples(computeMs, renderMs) {
+    computeSamples.push(computeMs);
+    if (computeSamples.length > TIMING_SAMPLE_LIMIT) {
+      computeSamples.shift();
+    }
+    renderSamples.push(renderMs);
+    if (renderSamples.length > TIMING_SAMPLE_LIMIT) {
+      renderSamples.shift();
+    }
+
+    const sumCompute = computeSamples.reduce((acc, val) => acc + val, 0);
+    const sumRender = renderSamples.reduce((acc, val) => acc + val, 0);
+    avgComputeMs = computeSamples.length ? sumCompute / computeSamples.length : 0;
+    avgRenderMs = renderSamples.length ? sumRender / renderSamples.length : 0;
   }
 
   function updateStatsUI() {
@@ -963,17 +988,9 @@ License: MIT
     minSpan.textContent = last.min.toFixed(1);
     maxSpan.textContent = last.max.toFixed(1);
     sdSpan.textContent = last.sd.toFixed(2);
-    if (hasSimulationRun) {
-      speedWrapper.style.display = '';
-      if (effectiveSpeed !== null) {
-        speedSpan.textContent = effectiveSpeed.toFixed(2);
-      } else {
-        speedSpan.textContent = '—';
-      }
-    } else {
-      speedWrapper.style.display = 'none';
-      speedSpan.textContent = '';
-    }
+    speedSpan.textContent = effectiveSpeed.toFixed(2);
+    computeSpan.textContent = avgComputeMs.toFixed(1);
+    renderSpan.textContent = avgRenderMs.toFixed(1);
   }
 
   function colorizeGenome(genome) {
@@ -1052,7 +1069,7 @@ License: MIT
     selectedAllelePos = 0;
     lastAlleleFreqs = [];
     traitMode = traitModeSelect.value === TRAIT_MODES.MONOGENIC ? TRAIT_MODES.MONOGENIC : TRAIT_MODES.POLYGENIC;
-    resetSpeedTracking();
+    resetTimingTracking();
     initGenetics();
 
     updateMutationFromSelect();
@@ -1070,17 +1087,27 @@ License: MIT
   }
 
   function stepSimulation() {
-    recordEffectiveSpeed(performance.now());
+    const stepStart = performance.now();
+    recordEffectiveSpeed(stepStart);
+
+    const computeStart = performance.now();
     population = makeNextGeneration(population);
     generation++;
     recordStats();
+    const computeEnd = performance.now();
+
+    const renderStart = performance.now();
     updateUI();
+    const renderEnd = performance.now();
+
+    recordTimingSamples(computeEnd - computeStart, renderEnd - renderStart);
+    updateStatsUI();
   }
 
   function startSimulation() {
     if (isRunning) return;
+    resetTimingTracking();
     lastStepTimestamp = performance.now();
-    speedSamples = [];
     isRunning = true;
     toggleBtn.textContent = 'Пауза';
     traitModeSelect.disabled = true;
@@ -1090,14 +1117,14 @@ License: MIT
   function stopSimulation() {
     if (!isRunning) return;
     isRunning = false;
-    lastStepTimestamp = null;
-    speedSamples = [];
+    resetTimingTracking();
     toggleBtn.textContent = 'Старт';
     traitModeSelect.disabled = false;
     if (intervalId !== null) {
       clearInterval(intervalId);
       intervalId = null;
     }
+    updateStatsUI();
   }
 
   // --- ОБРАБОТЧИКИ ---
