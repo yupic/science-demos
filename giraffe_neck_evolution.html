@@ -415,13 +415,7 @@ License: MIT
               <li>чем меньше σ (больше давление отбора), тем сильнее различаются шансы на размножение у более и менее приспособленных особей и тем быстрее меняется длина шеи.</li>
             </ul>
           </li>
-          <li><strong>«Скорость (мс/шаг)»</strong>:
-            <ul>
-              <li>управляет тем, как быстро обновляется симуляция по времени;</li>
-              <li>меньшее число миллисекунд на шаг → быстрее идут поколения.</li>
-            </ul>
-          </li>
-          <li>Часть параметров (<strong>скорость</strong>, <strong>число мутаций</strong>, <strong>давление отбора</strong>) можно менять прямо во время симуляции и сразу видеть, как меняется ход эволюции. Режим признака (полигенный/моногенный) меняется только при сбросе.</li>
+          <li>Часть параметров (<strong>число мутаций</strong>, <strong>давление отбора</strong>) можно менять прямо во время симуляции и сразу видеть, как меняется ход эволюции. Режим признака (полигенный/моногенный) меняется только при сбросе.</li>
         </ul>
 
         <p><strong>Что важно иметь в виду</strong></p>
@@ -464,11 +458,6 @@ License: MIT
       Давление отбора (σ):
       <input type="range" id="sigmaSlider" min="10" max="500" step="10" value="310" />
       <span class="slider-value" id="sigmaValue">200</span>
-    </label>
-    <label class="slider-label">
-      Скорость (мс/шаг):
-      <input type="range" id="speedSlider" min="0" max="5" step="1" value="0" />
-      <span class="slider-value" id="speedValue">150</span>
     </label>
   </div>
 
@@ -547,7 +536,7 @@ License: MIT
   const NECK_MAX_AXIS = 200;
 
   const HIST_BINS = NECK_MAX_AXIS;
-  const BASE_INTERVAL_MS = 150;
+  const STEP_INTERVAL_MS = 0;   // минимальный интервал между шагами, симуляция на максимальной скорости
   const ALLELE_LINE_THICKNESS = 5; // px
   const ALLELE_LINE_LENGTH = 200;  // px
   const ALLELE_MARKER_SIZE = ALLELE_LINE_THICKNESS;
@@ -573,7 +562,7 @@ License: MIT
   let globalOffset = 0;        // ожидаемый суммарный вклад генов для случайного генома
   let mutationRate = 10;       // ожидаемое число мутаций на поколение
   let selectionSigma = 200;    // давление отбора
-  let stepIntervalMs = BASE_INTERVAL_MS; // скорость симуляции
+  const stepIntervalMs = STEP_INTERVAL_MS;
   let selectedAllelePos = 0;
   let lastAlleleFreqs = [];
   let traitMode = TRAIT_MODES.POLYGENIC;
@@ -1061,9 +1050,7 @@ License: MIT
   const traitModeSelect = document.getElementById('traitModeSelect');
   const mutRateSelect = document.getElementById('mutRateSelect');
   const sigmaSlider = document.getElementById('sigmaSlider');
-  const speedSlider = document.getElementById('speedSlider');
   const sigmaValue = document.getElementById('sigmaValue');
-  const speedValue = document.getElementById('speedValue');
   const alleleInfo = document.getElementById('alleleInfo');
   const topGenomes = document.getElementById('topGenomes');
   const instructionsDetails = document.getElementById('instructionsDetails');
@@ -1097,7 +1084,6 @@ License: MIT
   const clampAllelePos = (pos) => Math.min(Math.max(pos, 0), GENOME_LENGTH - 1);
 
   const sliderValueToSigma = (value) => 510 - value;
-  const sliderValueToInterval = (value) => Math.max(5, BASE_INTERVAL_MS / Math.pow(2, value));
 
   function selectAllele(pos) {
     selectedAllelePos = clampAllelePos(pos);
@@ -1175,17 +1161,6 @@ License: MIT
     const v = parseFloat(sigmaSlider.value);
     selectionSigma = sliderValueToSigma(!Number.isNaN(v) ? v : 810);
     sigmaValue.textContent = selectionSigma.toFixed(0);
-  }
-
-  function updateSpeedFromSlider() {
-    const v = parseFloat(speedSlider.value);
-    stepIntervalMs = sliderValueToInterval(!Number.isNaN(v) ? v : 0);
-    const text = stepIntervalMs.toFixed(1).replace(/\.0$/, '');
-    speedValue.textContent = text;
-    if (isRunning) {
-      clearInterval(intervalId);
-      intervalId = setInterval(stepSimulation, stepIntervalMs);
-    }
   }
 
   function updateMutationFromSelect() {
@@ -1298,7 +1273,6 @@ License: MIT
 
     updateMutationFromSelect();
     updateSigmaFromSlider();
-    updateSpeedFromSlider();
 
     population = new Array(POP_SIZE);
     for (let i = 0; i < POP_SIZE; i++) {
@@ -1359,7 +1333,6 @@ License: MIT
 
   mutRateSelect.addEventListener('change', updateMutationFromSelect);
   sigmaSlider.addEventListener('input', updateSigmaFromSlider);
-  speedSlider.addEventListener('input', updateSpeedFromSlider);
 
   alleleCanvas.addEventListener('click', (evt) => {
     const rect = alleleCanvas.getBoundingClientRect();
