@@ -195,6 +195,24 @@ License: MIT
     .genome-letter-T {
       color: #00f;
     }
+    .instruction-card {
+      padding: 0;
+      max-width: 993px;
+    }
+    .instruction-summary {
+      cursor: pointer;
+      padding: 12px;
+      font-weight: 600;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+    .instruction-summary::marker,
+    .instruction-summary::-webkit-details-marker {
+      display: none;
+    }
     @media (max-width: 600px) {
       h1 { font-size: 20px; }
     }
@@ -203,14 +221,10 @@ License: MIT
 <body>
 <div class="container">
   <h1>Эволюция длины шеи жирафа</h1>
-  <p class="desc">
-    Модель: 100 генов (A/T/G/C), каждый даёт вклад от −2 до +2 см. Отбор стабилизирующий вокруг 150&nbsp;см.
-    На каждом поколении происходит в среднем заданное число мутаций (может быть меньше или больше за счёт случайности).
-  </p>
-
-  <details class="card" style="padding:0;">
-    <summary style="cursor:pointer; padding:12px; font-weight:600; list-style:none;">
-      📘 Показать описание и инструкцию
+  <details id="instructionsDetails" class="card instruction-card">
+    <summary id="instructionsSummary" class="instruction-summary">
+      <span id="instructionsSummaryIcon" aria-hidden="true">▶</span>
+      <span id="instructionsSummaryText">Развернуть описание</span>
     </summary>
     <div style="padding:0 12px 12px 12px;">
       <div class="card-title">TL;DR — как смотреть на эту демку</div>
@@ -1049,12 +1063,33 @@ License: MIT
   const speedValue = document.getElementById('speedValue');
   const alleleInfo = document.getElementById('alleleInfo');
   const topGenomes = document.getElementById('topGenomes');
+  const instructionsDetails = document.getElementById('instructionsDetails');
+  const instructionsSummaryIcon = document.getElementById('instructionsSummaryIcon');
+  const instructionsSummaryText = document.getElementById('instructionsSummaryText');
 
   let alleleInfoReady = false;
   let alleleInfoTitle = null;
   let alleleInfoPlaceholder = null;
   let alleleInfoContent = null;
   const alleleInfoValues = {};
+
+  const updateInstructionSummary = (isOpen) => {
+    if (!instructionsSummaryIcon || !instructionsSummaryText) return;
+    if (isOpen) {
+      instructionsSummaryIcon.textContent = '▼';
+      instructionsSummaryText.textContent = 'Свернуть описание';
+    } else {
+      instructionsSummaryIcon.textContent = '▶';
+      instructionsSummaryText.textContent = 'Развернуть описание';
+    }
+  };
+
+  if (instructionsDetails) {
+    updateInstructionSummary(instructionsDetails.open);
+    instructionsDetails.addEventListener('toggle', () => {
+      updateInstructionSummary(instructionsDetails.open);
+    });
+  }
 
   const clampAllelePos = (pos) => Math.min(Math.max(pos, 0), GENOME_LENGTH - 1);
 
