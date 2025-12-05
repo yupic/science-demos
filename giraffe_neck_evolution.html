@@ -36,7 +36,7 @@ License: MIT
     }
     h1 {
       margin: 0 0 8px;
-      font-size: 24px;
+      font-size: 20px;
     }
     p.desc {
       margin: 0 0 16px;
@@ -47,7 +47,7 @@ License: MIT
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       align-items: center;
     }
     button {
@@ -70,16 +70,18 @@ License: MIT
     .stats {
       font-size: 14px;
       color: var(--muted);
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .stats span.value {
       color: var(--fg);
       font-weight: 600;
+      display: inline-block;
+      text-align: right;
     }
     .card {
       background: var(--card);
       border-radius: 8px;
-      padding: 12px;
+      padding: 9px 10px;
       border: 1px solid var(--border);
       margin-bottom: 12px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.03);
@@ -197,11 +199,11 @@ License: MIT
     }
     .instruction-card {
       padding: 0;
-      max-width: 993px;
+      max-width: 989px;
     }
     .instruction-summary {
       cursor: pointer;
-      padding: 12px;
+      padding: 10px;
       font-weight: 600;
       list-style: none;
       display: flex;
@@ -220,7 +222,7 @@ License: MIT
 </head>
 <body>
 <div class="container">
-  <h1>Эволюция длины шеи жирафа</h1>
+  <h1>Симулятор эволюции длины шеи жирафа</h1>
   <details id="instructionsDetails" class="card instruction-card">
     <summary id="instructionsSummary" class="instruction-summary">
       <span id="instructionsSummaryIcon" aria-hidden="true">▶</span>
@@ -233,7 +235,7 @@ License: MIT
           <li>Нажмите <strong>«Старт»</strong>, чтобы запустить эволюцию популяции из 10&nbsp;000 жирафов с «геномом» из 100 позиций.</li>
           <li>Каждый ген даёт небольшой вклад в длину шеи. Отбор предпочитает особей с длиной около <strong>150&nbsp;см</strong> и делает их родителями чаще.</li>
           <li>Верхний график показывает <strong>распределение длин шеи</strong> в текущем поколении, нижний — <strong>динамику средней длины</strong> по поколениям.</li>
-          <li><strong>«Мутации/поколение»</strong> и <strong>«Давление отбора (σ)»</strong> можно менять во время работы и смотреть, как меняется скорость и ширина эволюции.</li>
+          <li><strong>«Мутаций на поколение»</strong> и <strong>«Давление отбора (σ)»</strong> можно менять во время работы и смотреть, как меняется скорость и ширина эволюции.</li>
           <li>Блок «Топ-5 длинных и 5 коротких» показывает примеры геномов; тепловая карта справа — <strong>частоты букв A/C/G/T</strong> в каждой позиции. Кликайте по буквам и строкам, чтобы увидеть вклад аллелей.</li>
           <li>Это упрощённая модель: вклад генов просто складывается, взаимодействий между ними (эпистаза) нет, а мутации ускорены, чтобы эволюция была заметна «на глазах».</li>
         </ul>
@@ -263,7 +265,7 @@ License: MIT
 
         <p><strong>Мутации</strong></p>
         <ul>
-          <li>После формирования нового поколения в нём случайным образом происходит некоторое <strong>число мутаций</strong> — то, что выбирается в списке «Мутации/поколение».</li>
+          <li>После формирования нового поколения в нём случайным образом происходит некоторое <strong>число мутаций</strong> — то, что выбирается в списке «Мутаций на поколение».</li>
           <li>Каждая мутация:
             <ul>
               <li>случайно выбирает одну особь и одну позицию в её геноме;</li>
@@ -391,7 +393,7 @@ License: MIT
         <p><strong>Кнопки и ползунки</strong></p>
         <ul>
           <li><strong>«Старт / Пауза»</strong> — запускает или останавливает эволюцию.</li>
-          <li><strong>«Шаг (1 поколение)»</strong> — продвигает модель ровно на одно поколение вперёд.</li>
+          <li><strong>«1 шаг»</strong> — продвигает модель ровно на одно поколение вперёд.</li>
           <li><strong>«Сбросить»</strong> — полностью переинициализирует генетическую карту и создаёт новую случайную популяцию.</li>
           <li><strong>«Признак: Полигенный / Моногенный»</strong>:
             <ul>
@@ -399,7 +401,7 @@ License: MIT
               <li>полигенный режим даёт много вариации с самого начала, моногенный — вводит её постепенно через мутации.</li>
             </ul>
           </li>
-          <li><strong>«Мутации/поколение»</strong>:
+          <li><strong>«Мутаций на поколение»</strong>:
             <ul>
               <li>задаёт <strong>ожидаемое</strong> число мутаций во всей популяции за одно поколение;</li>
               <li>чем больше значение, тем быстрее появляются новые варианты генов и тем быстрее эволюция находит новые комбинации.</li>
@@ -425,6 +427,7 @@ License: MIT
         <p><strong>Что важно иметь в виду</strong></p>
         <ul>
           <li>Это <strong>игрушечная модель</strong>: один признак, упрощённый отбор, завышенные скорости мутаций и совсем маленькое число «генов» по сравнению с реальным организмом.</li>
+          <li>Большой разброс длины шеи в демке (широкий колокол, далёкие значения min и max) тоже связан с упрощением. Здесь признак задаётся всего <strong>100 позициями</strong>, и вклад каждой буквы относительно крупный (до примерно ±2&nbsp;см). В реальных полигенных признаках участвуют тысячи вариантов с куда меньшим индивидуальным эффектом. Увеличивать число «генов» или сильно уменьшать вклад каждого в этой демке невыгодно: модель стала бы тяжелее, а изменения длины шеи было бы хуже видно «на глаз».</li>
           <li>Тем не менее, она иллюстрирует несколько ключевых идей:
             <ul>
               <li>как стабилизирующий отбор формирует <strong>колоколообразное распределение</strong> признака;</li>
@@ -439,7 +442,7 @@ License: MIT
 
   <div class="controls">
     <button id="toggleBtn">Старт</button>
-    <button id="stepBtn">Шаг (1 поколение)</button>
+    <button id="stepBtn">1 шаг</button>
     <button id="resetBtn">Сбросить</button>
     <label class="mut-label">
       Признак:
@@ -449,7 +452,7 @@ License: MIT
       </select>
     </label>
     <label class="mut-label">
-      Мутации/поколение:
+      Мутаций на поколение:
       <select id="mutRateSelect">
         <option value="1">1</option>
         <option value="10">10</option>
@@ -471,15 +474,15 @@ License: MIT
 
   <div class="stats">
     Поколение:
-    <span class="value" id="genSpan">0</span>
+    <span class="value" id="genSpan" style="width: 4ch">0</span>
     &nbsp;|&nbsp; средняя длина шеи:
-    <span class="value" id="meanSpan">0</span> см
+    <span class="value" id="meanSpan" style="width: 4ch">0</span> см
     &nbsp;|&nbsp; мин:
-    <span class="value" id="minSpan">0</span> см
+    <span class="value" id="minSpan" style="width: 4ch">0</span> см
     &nbsp;|&nbsp; макс:
-    <span class="value" id="maxSpan">0</span> см
+    <span class="value" id="maxSpan" style="width: 4ch">0</span> см
     &nbsp;|&nbsp; SD:
-    <span class="value" id="sdSpan">0</span> см
+    <span class="value" id="sdSpan" style="width: 4ch">0</span> см
   </div>
 
   <div class="charts-layout">
