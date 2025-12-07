@@ -32,7 +32,7 @@ License: MIT
     .container {
       margin: 0 auto;
       padding: 0 16px 20px 16px;
-      max-width: 980px;
+      width: 100%;
     }
     h1 {
       margin: 14px 0 6px;
@@ -110,6 +110,7 @@ License: MIT
       background: #fff;
       overflow: hidden;
       position: relative;
+      width: 100%;
     }
     canvas {
       display: block;
@@ -171,6 +172,7 @@ License: MIT
   let lastTime = 0;
   let fractionalSteps = 0;
   let hoveredIndex = null;
+  let animationId = null;
 
   const hoverInfoSpan = (() => {
     const statsLine = document.querySelector('.stats');
@@ -226,15 +228,16 @@ License: MIT
     canvas.width = Math.floor(displayWidth * dpr);
     canvas.height = Math.floor(targetHeight * dpr);
 
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const width = canvas.width / dpr;
     const height = canvas.height / dpr;
-    const marginLeft = 44;
-    const marginRight = 14;
-    const marginBottom = 36;
-    const marginTop = 16;
+    const marginLeft = 54;
+    const marginRight = 16;
+    const marginBottom = 40;
+    const marginTop = 18;
     const innerWidth = width - marginLeft - marginRight;
     const innerHeight = height - marginTop - marginBottom;
 
@@ -270,14 +273,10 @@ License: MIT
       if (coinCount >= 21 && coinCount <= 39) {
         return Array.from({ length: coinCount + 1 }, (_, i) => i);
       }
-      if (coinCount % 20 !== 0) {
-        const step = coinCount / 20;
-        const values = Array.from({ length: 20 }, (_, i) => Math.round(i * step));
-        values.push(coinCount);
-        return Array.from(new Set(values)).sort((a, b) => a - b);
-      }
-      const step = coinCount / 20;
-      return Array.from({ length: 21 }, (_, i) => Math.round(i * step));
+      const step = Math.max(1, Math.round(coinCount / 20));
+      const values = Array.from({ length: 21 }, (_, i) => i * step);
+      values.push(coinCount);
+      return Array.from(new Set(values.filter((v) => v <= coinCount))).sort((a, b) => a - b);
     })();
 
     for (const value of labelValues) {
@@ -285,11 +284,23 @@ License: MIT
       ctx.fillText(value.toString(), x, marginTop + innerHeight + 6);
     }
 
-    if (maxCount > 0) {
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(`max: ${formatCount(maxCount)}`, marginLeft + 4, marginTop + 14);
+    const maxProb = totalTrials > 0 && maxCount > 0 ? maxCount / totalTrials : 1;
+    const probScale = maxCount > 0 ? innerHeight * (totalTrials / maxCount) : innerHeight;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < 4; i++) {
+      const prob = (maxProb * i) / 3;
+      const y = marginTop + innerHeight - prob * probScale;
+      ctx.fillText(prob.toFixed(2), marginLeft - 8, y);
     }
+
+    ctx.save();
+    ctx.translate(16, marginTop + innerHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Вероятность', 0, 0);
+    ctx.restore();
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -300,49 +311,56 @@ License: MIT
       return;
     }
     const count = counts[hoveredIndex] || 0;
-    hoverInfoSpan.textContent = `Наведение: сумма ${hoveredIndex}, раз: ${formatCount(count)}`;
+    const prob = totalTrials > 0 ? count / totalTrials : 0;
+    hoverInfoSpan.textContent = `${hoveredIndex} орла, ${coinCount - hoveredIndex} решек, выпало ${formatCount(count)} раз, вероятность ${prob.toFixed(4)}`;
   }
 
   function toggleRun() {
     running = !running;
     toggleBtn.textContent = running ? 'Пауза' : 'Старт';
+    if (running) {
+      lastTime = 0;
+      if (animationId === null) {
+        animationId = requestAnimationFrame(loop);
+      }
+    }
   }
 
   function loop(timestamp) {
+    if (!running) {
+      animationId = null;
+      lastTime = 0;
+      return;
+    }
+
     if (!lastTime) lastTime = timestamp;
     const delta = (timestamp - lastTime) / 1000;
     lastTime = timestamp;
 
-    if (running) {
-      const speed = Number(speedSlider.value);
-      const rate = 30 * Math.pow(2, speed - 1);
-      const expectedSteps = delta * rate + fractionalSteps;
-      let steps = Math.floor(expectedSteps);
-      fractionalSteps = expectedSteps - steps;
-      steps = Math.min(steps, 30000);
-      if (steps > 0) {
-        simulateMany(steps);
-        trialCountSpan.textContent = formatCount(totalTrials);
-      }
+    const speed = Number(speedSlider.value);
+    const rate = 30 * Math.pow(2, speed - 1);
+    const expectedSteps = delta * rate + fractionalSteps;
+    let steps = Math.floor(expectedSteps);
+    fractionalSteps = expectedSteps - steps;
+    steps = Math.min(steps, 30000);
+    if (steps > 0) {
+      simulateMany(steps);
+      trialCountSpan.textContent = formatCount(totalTrials);
     }
 
     draw();
     updateHoverInfo();
-    requestAnimationFrame(loop);
+    animationId = requestAnimationFrame(loop);
   }
 
   function handleMouseMove(event) {
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const x = (event.clientX - rect.left) * dpr;
-    const width = canvas.width;
-    const marginLeft = 44 * dpr;
-    const marginRight = 14 * dpr;
-    const marginBottom = 36 * dpr;
-    const marginTop = 16 * dpr;
-    const innerWidth = width - marginLeft - marginRight;
+    const x = event.clientX - rect.left;
+    const marginLeft = 54;
+    const marginRight = 16;
+    const innerWidth = rect.width - marginLeft - marginRight;
 
-    if (x < marginLeft || x > width - marginRight) {
+    if (x < marginLeft || x > rect.width - marginRight) {
       hoveredIndex = null;
       updateHoverInfo();
       return;
@@ -381,7 +399,6 @@ License: MIT
 
   updateSpeedLabel();
   resetSimulation();
-  requestAnimationFrame(loop);
 </script>
 </body>
 </html>
