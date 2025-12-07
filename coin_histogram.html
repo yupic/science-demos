@@ -179,10 +179,14 @@ License: MIT
     const span = document.createElement('span');
     span.style.marginLeft = '12px';
     span.id = 'hoverInfo';
-    span.textContent = 'Наведение: —';
+    span.textContent = '';
     statsLine.appendChild(span);
     return span;
   })();
+
+  function defaultDisplayIndex() {
+    return Math.round(coinCount / 2);
+  }
 
   function updateSpeedLabel() {
     const s = Number(speedSlider.value);
@@ -305,14 +309,20 @@ License: MIT
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
+  function formatProbability(prob) {
+    if (prob === 0) return '0';
+    const percent = prob * 100;
+    if (prob >= 0.0001) return `${percent.toFixed(2)}%`;
+    const n = Math.ceil(-Math.log10(percent));
+    const denom = Math.pow(10, n);
+    return `1/${denom.toLocaleString('ru-RU')}%`;
+  }
+
   function updateHoverInfo() {
-    if (hoveredIndex === null) {
-      hoverInfoSpan.textContent = 'Наведение: —';
-      return;
-    }
-    const count = counts[hoveredIndex] || 0;
+    const index = hoveredIndex === null ? defaultDisplayIndex() : hoveredIndex;
+    const count = counts[index] || 0;
     const prob = totalTrials > 0 ? count / totalTrials : 0;
-    hoverInfoSpan.textContent = `${hoveredIndex} орла, ${coinCount - hoveredIndex} решек, выпало ${formatCount(count)} раз, вероятность ${prob.toFixed(4)}`;
+    hoverInfoSpan.textContent = `Орлы/решки: ${index}/${coinCount - index}, выпало ${formatCount(count)} раз, вероятность ${formatProbability(prob)}`;
   }
 
   function toggleRun() {
@@ -361,7 +371,6 @@ License: MIT
     const innerWidth = rect.width - marginLeft - marginRight;
 
     if (x < marginLeft || x > rect.width - marginRight) {
-      hoveredIndex = null;
       updateHoverInfo();
       return;
     }
@@ -374,7 +383,6 @@ License: MIT
   }
 
   function hideTooltip() {
-    hoveredIndex = null;
     updateHoverInfo();
   }
 
