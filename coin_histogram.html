@@ -117,19 +117,6 @@ License: MIT
       height: auto;
       background: #fff;
     }
-    #tooltip {
-      position: absolute;
-      pointer-events: none;
-      background: rgba(0, 0, 0, 0.8);
-      color: #fff;
-      padding: 6px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      transform: translate(-50%, -120%);
-      white-space: nowrap;
-      opacity: 0;
-      transition: opacity 0.1s ease;
-    }
     .note {
       font-size: 12px;
       color: var(--muted);
@@ -162,15 +149,13 @@ License: MIT
     <div class="stats">Сделано бросков: <span id="trialCount">0</span></div>
     <div class="canvas-frame">
       <canvas id="histCanvas"></canvas>
-      <div id="tooltip"></div>
     </div>
-    <div class="note">Высота гистограммы автоматически подстраивается под текущий максимум. Если сумма появлялась хотя бы один раз, её столбик имеет минимальную высоту 2 пикселя. Подписи по оси X показывают 20 равномерно распределённых значений от 0 до N.</div>
+    <div class="note">Высота гистограммы автоматически подстраивается под текущий максимум. Если сумма появлялась хотя бы один раз, её столбик имеет минимальную высоту 2 пикселя. Подписи по оси X отображают равномерные значения (или все числа для малых N) и завершаются точкой N.</div>
   </div>
 </div>
 <script>
   const canvas = document.getElementById('histCanvas');
   const ctx = canvas.getContext('2d');
-  const tooltip = document.getElementById('tooltip');
   const coinInput = document.getElementById('coinCount');
   const stepBtn = document.getElementById('stepBtn');
   const toggleBtn = document.getElementById('toggleBtn');
@@ -184,6 +169,18 @@ License: MIT
   let totalTrials = 0;
   let running = false;
   let lastTime = 0;
+  let fractionalSteps = 0;
+  let hoveredIndex = null;
+
+  const hoverInfoSpan = (() => {
+    const statsLine = document.querySelector('.stats');
+    const span = document.createElement('span');
+    span.style.marginLeft = '12px';
+    span.id = 'hoverInfo';
+    span.textContent = 'Наведение: —';
+    statsLine.appendChild(span);
+    return span;
+  })();
 
   function updateSpeedLabel() {
     const s = Number(speedSlider.value);
@@ -197,7 +194,10 @@ License: MIT
     coinInput.value = coinCount;
     counts = new Array(coinCount + 1).fill(0);
     totalTrials = 0;
+    fractionalSteps = 0;
+    hoveredIndex = null;
     trialCountSpan.textContent = totalTrials.toLocaleString('ru-RU');
+    updateHoverInfo();
     draw();
   }
 
@@ -266,9 +266,21 @@ License: MIT
     ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const step = coinCount / 20;
-    for (let i = 0; i <= 20; i++) {
-      const value = Math.round(i * step);
+    const labelValues = (() => {
+      if (coinCount >= 21 && coinCount <= 39) {
+        return Array.from({ length: coinCount + 1 }, (_, i) => i);
+      }
+      if (coinCount % 20 !== 0) {
+        const step = coinCount / 20;
+        const values = Array.from({ length: 20 }, (_, i) => Math.round(i * step));
+        values.push(coinCount);
+        return Array.from(new Set(values)).sort((a, b) => a - b);
+      }
+      const step = coinCount / 20;
+      return Array.from({ length: 21 }, (_, i) => Math.round(i * step));
+    })();
+
+    for (const value of labelValues) {
       const x = marginLeft + (value / coinCount) * innerWidth;
       ctx.fillText(value.toString(), x, marginTop + innerHeight + 6);
     }
@@ -280,6 +292,15 @@ License: MIT
     }
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  function updateHoverInfo() {
+    if (hoveredIndex === null) {
+      hoverInfoSpan.textContent = 'Наведение: —';
+      return;
+    }
+    const count = counts[hoveredIndex] || 0;
+    hoverInfoSpan.textContent = `Наведение: сумма ${hoveredIndex}, раз: ${formatCount(count)}`;
   }
 
   function toggleRun() {
@@ -295,7 +316,9 @@ License: MIT
     if (running) {
       const speed = Number(speedSlider.value);
       const rate = 30 * Math.pow(2, speed - 1);
-      let steps = Math.floor(delta * rate);
+      const expectedSteps = delta * rate + fractionalSteps;
+      let steps = Math.floor(expectedSteps);
+      fractionalSteps = expectedSteps - steps;
       steps = Math.min(steps, 30000);
       if (steps > 0) {
         simulateMany(steps);
@@ -304,6 +327,7 @@ License: MIT
     }
 
     draw();
+    updateHoverInfo();
     requestAnimationFrame(loop);
   }
 
@@ -312,32 +336,28 @@ License: MIT
     const dpr = window.devicePixelRatio || 1;
     const x = (event.clientX - rect.left) * dpr;
     const width = canvas.width;
-    const height = canvas.height;
     const marginLeft = 44 * dpr;
     const marginRight = 14 * dpr;
     const marginBottom = 36 * dpr;
     const marginTop = 16 * dpr;
     const innerWidth = width - marginLeft - marginRight;
-    const innerHeight = height - marginTop - marginBottom;
 
     if (x < marginLeft || x > width - marginRight) {
-      tooltip.style.opacity = 0;
+      hoveredIndex = null;
+      updateHoverInfo();
       return;
     }
 
     const barWidth = innerWidth / (coinCount + 1);
     let idx = Math.floor((x - marginLeft) / barWidth);
     idx = Math.max(0, Math.min(coinCount, idx));
-    const count = counts[idx] || 0;
-
-    tooltip.textContent = `Сумма: ${idx}\nРаз: ${formatCount(count)}`;
-    tooltip.style.left = `${event.clientX}px`;
-    tooltip.style.top = `${event.clientY}px`;
-    tooltip.style.opacity = 1;
+    hoveredIndex = idx;
+    updateHoverInfo();
   }
 
   function hideTooltip() {
-    tooltip.style.opacity = 0;
+    hoveredIndex = null;
+    updateHoverInfo();
   }
 
   coinInput.addEventListener('change', resetSimulation);
@@ -345,6 +365,7 @@ License: MIT
     simulateMany(1);
     trialCountSpan.textContent = formatCount(totalTrials);
     draw();
+    updateHoverInfo();
   });
   toggleBtn.addEventListener('click', toggleRun);
   resetBtn.addEventListener('click', () => {
