@@ -152,7 +152,8 @@ License: MIT
   <div class="probability-section">
     <div class="probability-list" id="probabilityList"></div>
     <div class="prob-actions">
-      <button id="addProbBtn">Добавить вероятность</button>
+      <button id="addProbBtn">➕</button>
+      <button id="removeProbBtn" disabled>❌</button>
       <button id="createBtn">Создать</button>
     </div>
   </div>
@@ -173,6 +174,7 @@ License: MIT
   const coinInput = document.getElementById('coinCount');
   const createBtn = document.getElementById('createBtn');
   const addProbBtn = document.getElementById('addProbBtn');
+  const removeProbBtn = document.getElementById('removeProbBtn');
   const probabilityList = document.getElementById('probabilityList');
   const scaleModeSelect = document.getElementById('scaleMode');
 
@@ -241,18 +243,6 @@ License: MIT
     probText.style.color = '#444';
     probText.textContent = formatHeadsTails(safeDefault);
 
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Удалить';
-    removeBtn.addEventListener('click', () => {
-      probabilityList.removeChild(row);
-      datasets = [];
-      draw([]);
-      refreshColorDots();
-      if (probabilityList.children.length === 0) {
-        addDefaultRow();
-      }
-    });
-
     const info = document.createElement('span');
     info.className = 'prob-info';
     info.style.fontSize = '12px';
@@ -261,7 +251,6 @@ License: MIT
     row.appendChild(colorDot);
     row.appendChild(label);
     row.appendChild(probText);
-    row.appendChild(removeBtn);
     row.appendChild(info);
     probabilityList.appendChild(row);
   }
@@ -273,8 +262,13 @@ License: MIT
     });
   }
 
+  function updateRemoveButtonState() {
+    removeProbBtn.disabled = probabilityList.children.length <= 1;
+  }
+
   function addDefaultRow() {
     createProbabilityRow(50);
+    updateRemoveButtonState();
   }
 
   function binomialProbs(coinCount, p) {
@@ -295,14 +289,33 @@ License: MIT
       return probs;
     }
 
-    const q = 1 - p;
-    let current = Math.pow(q, coinCount);
-    probs[0] = current;
+    const logFact = new Array(coinCount + 1).fill(0);
+    for (let i = 1; i <= coinCount; i++) {
+      logFact[i] = logFact[i - 1] + Math.log(i);
+    }
 
-    for (let k = 0; k < coinCount; k++) {
-      const ratio = ((coinCount - k) / (k + 1)) * (p / q);
-      current *= ratio;
-      probs[k + 1] = current;
+    const logP = Math.log(p);
+    const logQ = Math.log(1 - p);
+    let maxLog = -Infinity;
+    const logProbs = new Array(coinCount + 1);
+
+    for (let k = 0; k <= coinCount; k++) {
+      const logProb = logFact[coinCount] - logFact[k] - logFact[coinCount - k] + k * logP + (coinCount - k) * logQ;
+      logProbs[k] = logProb;
+      if (logProb > maxLog) maxLog = logProb;
+    }
+
+    let sum = 0;
+    for (let k = 0; k <= coinCount; k++) {
+      const value = Math.exp(logProbs[k] - maxLog);
+      probs[k] = value;
+      sum += value;
+    }
+
+    const minDisplayProb = 0.0005; // 0.05%
+    for (let k = 0; k <= coinCount; k++) {
+      const normalized = probs[k] / sum;
+      probs[k] = normalized <= minDisplayProb ? 0 : normalized;
     }
 
     return probs;
@@ -598,6 +611,17 @@ License: MIT
   addProbBtn.addEventListener('click', () => {
     createProbabilityRow(50);
     refreshColorDots();
+    updateRemoveButtonState();
+  });
+
+  removeProbBtn.addEventListener('click', () => {
+    const rows = probabilityList.children;
+    if (rows.length <= 1) return;
+    probabilityList.removeChild(rows[rows.length - 1]);
+    datasets = [];
+    draw([]);
+    refreshColorDots();
+    updateRemoveButtonState();
   });
 
   scaleModeSelect.addEventListener('change', (e) => {
@@ -612,6 +636,7 @@ License: MIT
 
   addDefaultRow();
   draw([]);
+  updateRemoveButtonState();
 </script>
 </body>
 </html>
