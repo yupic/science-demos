@@ -145,6 +145,12 @@ License: MIT
     <label class="mut-label">Количество бросков:
       <input type="number" id="trialCount" min="1" max="2000000" value="100000" />
     </label>
+    <label class="mut-label">Масштаб:
+      <select id="scaleMode">
+        <option value="full" selected>Полный</option>
+        <option value="auto">Авто</option>
+      </select>
+    </label>
   </div>
   <div class="probability-section">
     <div class="probability-list" id="probabilityList"></div>
@@ -172,6 +178,7 @@ License: MIT
   const createBtn = document.getElementById('createBtn');
   const addProbBtn = document.getElementById('addProbBtn');
   const probabilityList = document.getElementById('probabilityList');
+  const scaleModeSelect = document.getElementById('scaleMode');
 
   const colors = [
     'rgba(44, 123, 229, 0.45)',
@@ -185,6 +192,8 @@ License: MIT
 
   let datasets = [];
   let hoveredIndex = null;
+  let scaleMode = 'full';
+  let currentRange = { min: 0, max: clampInt(coinInput.value, 1, 5000, 100) };
 
   function clampInt(value, min, max, fallback) {
     const n = parseInt(value, 10);
@@ -209,7 +218,7 @@ License: MIT
   function createProbabilityRow(defaultValue = 50) {
     const row = document.createElement('div');
     row.className = 'probability-row';
-    const safeDefault = clampInt(defaultValue, 10, 90, 50);
+    const safeDefault = clampInt(defaultValue, 5, 95, 50);
 
     const colorDot = document.createElement('div');
     colorDot.className = 'color-dot';
@@ -222,11 +231,12 @@ License: MIT
 
     const input = document.createElement('input');
     input.type = 'range';
-    input.min = '10';
-    input.max = '90';
+    input.min = '5';
+    input.max = '95';
+    input.step = '5';
     input.value = safeDefault;
     input.addEventListener('input', () => {
-      const v = clampInt(input.value, 10, 90, safeDefault);
+      const v = clampInt(input.value, 5, 95, safeDefault);
       input.value = v;
       probText.textContent = formatHeadsTails(v);
     });
@@ -276,10 +286,23 @@ License: MIT
   }
 
   function sampleHeads(n, p) {
+    if (p <= 0) return 0;
+    if (p >= 1) return n;
+
+    const threshold = Math.floor(p * 0x100000000);
     let heads = 0;
-    for (let i = 0; i < n; i++) {
-      if (Math.random() < p) heads += 1;
+    let i = 0;
+
+    while (i < n) {
+      let bits = (Math.random() * 0x100000000) >>> 0;
+      const block = Math.min(32, n - i);
+
+      for (let k = 0; k < block; k++, i++) {
+        heads += (bits >>> 0) < threshold ? 1 : 0;
+        bits = (bits * 1664525 + 1013904223) >>> 0;
+      }
     }
+
     return heads;
   }
 
@@ -335,11 +358,45 @@ License: MIT
     return { ticks, maxValue };
   }
 
-  function draw(simulatedDatasets) {
-    const coinCountValue = clampInt(coinInput.value, 1, 5000, 100);
-    coinInput.value = coinCountValue;
+  function calculateRange(simulatedDatasets, fallbackCoinCount) {
+    const defaultRange = { min: 0, max: fallbackCoinCount };
 
-    const { min: xMin, max: xMax } = { min: 0, max: coinCountValue };
+    if (scaleMode !== 'auto' || !simulatedDatasets || simulatedDatasets.length === 0) {
+      return defaultRange;
+    }
+
+    let minObserved = null;
+    let maxObserved = null;
+
+    simulatedDatasets.forEach(({ counts }) => {
+      if (!counts) return;
+      for (let i = 0; i < counts.length; i++) {
+        if (counts[i] > 0) {
+          if (minObserved === null) minObserved = i;
+          maxObserved = i;
+        }
+      }
+    });
+
+    if (minObserved === null) return defaultRange;
+    if (minObserved === maxObserved) {
+      const min = Math.max(0, minObserved - 1);
+      const max = Math.min(fallbackCoinCount, maxObserved + 1);
+      return { min, max };
+    }
+
+    return { min: minObserved, max: maxObserved };
+  }
+
+  function draw(simulatedDatasets) {
+    const inputCoinCount = clampInt(coinInput.value, 1, 5000, 100);
+    const coinCountValue = simulatedDatasets?.[0]?.counts?.length
+      ? simulatedDatasets[0].counts.length - 1
+      : inputCoinCount;
+    coinInput.value = inputCoinCount;
+
+    const { min: xMin, max: xMax } = calculateRange(simulatedDatasets, coinCountValue);
+    currentRange = { min: xMin, max: xMax };
     const xMinEdge = xMin - 0.5;
     const xMaxEdge = xMax + 0.5;
     const xRange = xMaxEdge - xMinEdge || 1;
@@ -458,7 +515,7 @@ License: MIT
     const values = [];
     Array.from(probabilityList.children).forEach((row, idx) => {
       const input = row.querySelector('input[type="range"]');
-      const value = clampInt(input?.value, 10, 90, 50);
+      const value = clampInt(input?.value, 5, 95, 50);
       input.value = value;
       const probText = row.querySelector('.prob-display');
       if (probText) probText.textContent = formatHeadsTails(value);
@@ -504,8 +561,8 @@ License: MIT
     const marginRight = 16;
     const innerWidth = rect.width - marginLeft - marginRight;
     const coinCountValue = datasets[0]?.counts.length ? datasets[0].counts.length - 1 : clampInt(coinInput.value, 1, 5000, 100);
-    const xMin = 0;
-    const xMax = coinCountValue;
+    const xMin = currentRange.min;
+    const xMax = currentRange.max;
     const xMinEdge = xMin - 0.5;
     const xMaxEdge = xMax + 0.5;
     const xRange = xMaxEdge - xMinEdge || 1;
@@ -553,6 +610,11 @@ License: MIT
   addProbBtn.addEventListener('click', () => {
     createProbabilityRow(50);
     refreshColorDots();
+  });
+
+  scaleModeSelect.addEventListener('change', (e) => {
+    scaleMode = e.target.value;
+    draw(datasets);
   });
 
   createBtn.addEventListener('click', handleCreate);
