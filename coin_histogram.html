@@ -35,8 +35,8 @@ License: MIT
       width: 100%;
     }
     h1 {
-      margin: 14px 0 6px;
-      font-size: 22px;
+      margin: 0 0 8px;
+      font-size: 20px;
     }
     p.desc {
       margin: 0 0 14px;
@@ -66,18 +66,9 @@ License: MIT
       transform: translateY(1px);
       box-shadow: 0 0 0 rgba(0,0,0,0.05);
     }
-    .card {
-      background: var(--card);
-      border-radius: 8px;
-      padding: 9px 10px;
-      border: 1px solid var(--border);
-      margin-bottom: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-    }
-    .card-title {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 6px;
+    select {
+      padding: 4px 6px;
+      font-size: 13px;
     }
     .stats {
       font-size: 14px;
@@ -134,32 +125,30 @@ License: MIT
 <div class="container">
   <h1>Распределение числа выпавших орлов</h1>
   <p class="desc">Сколько орлов выпадает при многократном подбрасывании набора монет. Нажмите «Старт», чтобы увидеть, как гистограмма стремится к биномиальному распределению.</p>
-  <div class="card">
-    <div class="controls">
-      <button id="toggleBtn">Старт</button>
-      <button id="stepBtn">1 шаг</button>
-      <button id="resetBtn">Сбросить</button>
-      <label class="mut-label">Монет:
-        <input type="number" id="coinCount" min="1" max="5000" value="100" />
-      </label>
-      <label class="mut-label">Масштаб:
-        <select id="scaleMode">
-          <option value="full" selected>Полный</option>
-          <option value="auto">Авто</option>
-        </select>
-      </label>
-      <label class="slider-label">Скорость:
-        <input type="range" id="speed" min="1" max="20" value="1" />
-        <span id="speedValue" class="slider-value">1× (30/с)</span>
-      </label>
-    </div>
-    <div class="stats">Сделано бросков: <span id="trialCount">0</span></div>
-    <div class="canvas-frame">
-      <canvas id="histCanvas"></canvas>
-    </div>
+  <div class="controls">
+    <button id="toggleBtn">Старт</button>
+    <button id="stepBtn">1 шаг</button>
+    <button id="resetBtn">Сбросить</button>
+    <label class="mut-label">Монет:
+      <input type="number" id="coinCount" min="1" max="5000" value="100" />
+    </label>
+    <label class="mut-label">Масштаб:
+      <select id="scaleMode">
+        <option value="full" selected>Полный</option>
+        <option value="auto">Авто</option>
+      </select>
+    </label>
+    <label class="slider-label">Скорость:
+      <input type="range" id="speed" min="1" max="20" value="1" />
+      <span id="speedValue" class="slider-value">1× (30/с)</span>
+    </label>
+  </div>
+  <div class="stats">Сделано бросков: <span id="trialCount">0</span></div>
+  <div class="canvas-frame">
+    <canvas id="histCanvas"></canvas>
   </div>
 </div>
-<div style="margin-bottom:10px; font-size:12px; color:#999; text-align:center;">
+<div style="margin: 10px 0; font-size:12px; color:#999; text-align:center;">
   © autism_science • MIT License •
   <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener" style="color:#999;">GitHub</a> •
   <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener" style="color:#999;">YouTube</a> •
@@ -463,7 +452,7 @@ License: MIT
     const index = hoveredIndex === null ? defaultDisplayIndex() : hoveredIndex;
     const count = counts[index] || 0;
     const prob = totalTrials > 0 ? count / totalTrials : 0;
-    hoverInfoSpan.textContent = `Орлы/решки: ${index}/${coinCount - index}, выпало ${formatCount(count)} раз, вероятность ${formatProbability(prob)}`;
+    hoverInfoSpan.textContent = `| Орлы/решки: ${index}/${coinCount - index}, выпало ${formatCount(count)} раз, вероятность ${formatProbability(prob)}`;
   }
 
   function toggleRun() {
