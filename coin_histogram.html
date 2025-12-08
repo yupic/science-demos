@@ -197,6 +197,12 @@ License: MIT
     return span;
   })();
 
+  function setRunningState(isRunning) {
+    running = isRunning;
+    toggleBtn.textContent = running ? 'Пауза' : 'Старт';
+    coinInput.disabled = running;
+  }
+
   function defaultDisplayIndex() {
     const center = Math.floor(coinCount / 2);
     const alt = Math.min(coinCount, center + 1);
@@ -461,8 +467,7 @@ License: MIT
   }
 
   function toggleRun() {
-    running = !running;
-    toggleBtn.textContent = running ? 'Пауза' : 'Старт';
+    setRunningState(!running);
     if (running) {
       lastTime = 0;
       if (animationId === null) {
@@ -539,8 +544,7 @@ License: MIT
   });
   toggleBtn.addEventListener('click', toggleRun);
   resetBtn.addEventListener('click', () => {
-    running = false;
-    toggleBtn.textContent = 'Старт';
+    setRunningState(false);
     resetSimulation();
   });
   speedSlider.addEventListener('input', updateSpeedLabel);
