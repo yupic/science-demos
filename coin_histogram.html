@@ -151,7 +151,7 @@ License: MIT
     <div class="canvas-frame">
       <canvas id="histCanvas"></canvas>
     </div>
-    <div class="note">Высота гистограммы автоматически подстраивается под текущий максимум. Если сумма появлялась хотя бы один раз, её столбик имеет минимальную высоту 2 пикселя. Подписи по оси X отображают равномерные значения (или все числа для малых N) и завершаются точкой N.</div>
+    <div class="note">Высота гистограммы автоматически подстраивается под текущий максимум. Если сумма появлялась хотя бы один раз, её столбик имеет минимальную высоту 2 пикселя. Подписи по оси X подстраиваются под ширину окна: для малых N выводятся все числа, для больших — равномерные и «круглые» значения с обязательным N.</div>
   </div>
 </div>
 <script>
@@ -185,7 +185,12 @@ License: MIT
   })();
 
   function defaultDisplayIndex() {
-    return Math.round(coinCount / 2);
+    const center = Math.floor(coinCount / 2);
+    const alt = Math.min(coinCount, center + 1);
+    if (coinCount % 2 === 0 && totalTrials > 0) {
+      return (counts[alt] || 0) > (counts[center] || 0) ? alt : center;
+    }
+    return center;
   }
 
   function updateSpeedLabel() {
@@ -222,6 +227,64 @@ License: MIT
 
   function formatCount(n) {
     return n.toLocaleString('ru-RU');
+  }
+
+  function generateSuperscript(exp) {
+    const map = {
+      '-': '\u207b',
+      '0': '\u2070',
+      '1': '\u00b9',
+      '2': '\u00b2',
+      '3': '\u00b3',
+      '4': '\u2074',
+      '5': '\u2075',
+      '6': '\u2076',
+      '7': '\u2077',
+      '8': '\u2078',
+      '9': '\u2079'
+    };
+    return String(exp)
+      .split('')
+      .map((c) => map[c] ?? c)
+      .join('');
+  }
+
+  function generateXTicks(n, widthPx, minLabelGapPx = 34) {
+    const width = Math.max(0, widthPx);
+    const maxLabels = Math.floor(width / minLabelGapPx);
+    if (maxLabels < 2) return [0, n];
+
+    if (n + 1 <= maxLabels) {
+      return Array.from({ length: n + 1 }, (_, i) => i);
+    }
+
+    const targetLabels = Math.min(maxLabels, 11);
+    let rawStep = n / (targetLabels - 1);
+    const m = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const x = rawStep / m;
+    let niceBase;
+    if (x <= 1) niceBase = 1;
+    else if (x <= 2) niceBase = 2;
+    else if (x <= 5) niceBase = 5;
+    else niceBase = 10;
+    let step = niceBase * m;
+
+    const buildTicks = () => {
+      const ticks = [];
+      for (let v = 0; v <= n; v += step) {
+        ticks.push(Math.round(v));
+      }
+      if (ticks[0] !== 0) ticks.unshift(0);
+      if (ticks[ticks.length - 1] !== n) ticks.push(n);
+      return ticks;
+    };
+
+    let ticks = buildTicks();
+    if (ticks.length > maxLabels) {
+      step *= 2;
+      ticks = buildTicks();
+    }
+    return ticks;
   }
 
   function draw() {
@@ -273,15 +336,7 @@ License: MIT
     ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const labelValues = (() => {
-      if (coinCount >= 21 && coinCount <= 39) {
-        return Array.from({ length: coinCount + 1 }, (_, i) => i);
-      }
-      const step = Math.max(1, Math.round(coinCount / 20));
-      const values = Array.from({ length: 21 }, (_, i) => i * step);
-      values.push(coinCount);
-      return Array.from(new Set(values.filter((v) => v <= coinCount))).sort((a, b) => a - b);
-    })();
+    const labelValues = generateXTicks(coinCount, innerWidth);
 
     for (const value of labelValues) {
       const x = marginLeft + (value / coinCount) * innerWidth;
@@ -312,10 +367,11 @@ License: MIT
   function formatProbability(prob) {
     if (prob === 0) return '0';
     const percent = prob * 100;
-    if (prob >= 0.0001) return `${percent.toFixed(2)}%`;
-    const n = Math.ceil(-Math.log10(percent));
-    const denom = Math.pow(10, n);
-    return `1/${denom.toLocaleString('ru-RU')}%`;
+    if (percent >= 0.01) return `${percent.toFixed(2)}%`;
+    const [mantissaStr, expStr] = percent.toExponential(1).split('e');
+    const mantissa = Number.parseFloat(mantissaStr).toFixed(1);
+    const exp = Number.parseInt(expStr, 10);
+    return `${mantissa}×10${generateSuperscript(exp)}%`;
   }
 
   function updateHoverInfo() {
