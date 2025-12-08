@@ -137,7 +137,7 @@ License: MIT
 <body>
 <div class="container">
   <h1>Распределение числа выпавших орлов</h1>
-  <p class="desc">Сравните гистограммы для разной вероятности выпадения орла. Укажите число монет и несколько вариантов вероятностей, затем нажмите «Создать», чтобы увидеть распределения вероятностей для выпадения заданного числа орлов.</p>
+  <p class="desc">Сравните гистограммы для разной вероятности выпадения орла. Укажите число монет и несколько вариантов вероятностей — распределения обновляются сразу при изменениях.</p>
   <div class="controls">
     <label class="mut-label">Монет:
       <input type="number" id="coinCount" min="1" max="5000" value="100" />
@@ -154,7 +154,6 @@ License: MIT
     <div class="prob-actions">
       <button id="addProbBtn">➕</button>
       <button id="removeProbBtn" disabled>❌</button>
-      <button id="createBtn">Создать</button>
     </div>
   </div>
   <div class="canvas-frame">
@@ -172,7 +171,6 @@ License: MIT
   const canvas = document.getElementById('histCanvas');
   const ctx = canvas.getContext('2d');
   const coinInput = document.getElementById('coinCount');
-  const createBtn = document.getElementById('createBtn');
   const addProbBtn = document.getElementById('addProbBtn');
   const removeProbBtn = document.getElementById('removeProbBtn');
   const probabilityList = document.getElementById('probabilityList');
@@ -233,6 +231,7 @@ License: MIT
       const v = clampInt(input.value, 5, 95, safeDefault);
       input.value = v;
       probText.textContent = formatHeadsTails(v);
+      handleCreate();
     });
 
     label.appendChild(input);
@@ -612,16 +611,16 @@ License: MIT
     createProbabilityRow(50);
     refreshColorDots();
     updateRemoveButtonState();
+    handleCreate();
   });
 
   removeProbBtn.addEventListener('click', () => {
     const rows = probabilityList.children;
     if (rows.length <= 1) return;
     probabilityList.removeChild(rows[rows.length - 1]);
-    datasets = [];
-    draw([]);
     refreshColorDots();
     updateRemoveButtonState();
+    handleCreate();
   });
 
   scaleModeSelect.addEventListener('change', (e) => {
@@ -629,13 +628,13 @@ License: MIT
     draw(datasets);
   });
 
-  createBtn.addEventListener('click', handleCreate);
+  coinInput.addEventListener('input', handleCreate);
   canvas.addEventListener('mousemove', handleMouseMove);
   canvas.addEventListener('mouseleave', handleMouseLeave);
   window.addEventListener('resize', () => draw(datasets));
 
   addDefaultRow();
-  draw([]);
+  handleCreate();
   updateRemoveButtonState();
 </script>
 </body>
