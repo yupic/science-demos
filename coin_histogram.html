@@ -31,7 +31,7 @@ License: MIT
     }
     .container {
       margin: 0 auto;
-      padding: 0 16px 20px 16px;
+      padding: 0 16px;
       width: 100%;
     }
     h1 {
@@ -69,7 +69,7 @@ License: MIT
     .card {
       background: var(--card);
       border-radius: 8px;
-      padding: 10px 12px 12px 12px;
+      padding: 9px 10px;
       border: 1px solid var(--border);
       margin-bottom: 12px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.03);
@@ -132,7 +132,7 @@ License: MIT
 </head>
 <body>
 <div class="container">
-  <h1>Распределение числа орлов</h1>
+  <h1>Распределение числа выпавших орлов</h1>
   <p class="desc">Сколько орлов выпадает при многократном подбрасывании набора монет. Нажмите «Старт», чтобы увидеть, как гистограмма стремится к биномиальному распределению.</p>
   <div class="card">
     <div class="controls">
@@ -293,24 +293,9 @@ License: MIT
   }
 
   function generateYTicks(maxProb) {
-    if (maxProb <= 0) {
-      return { ticks: [0, 0.25, 0.5, 0.75, 1], maxValue: 1 };
-    }
-    const desired = 5;
-    const rawStep = maxProb / (desired - 1);
-    const m = Math.pow(10, Math.floor(Math.log10(rawStep)));
-    const x = rawStep / m;
-    let niceBase;
-    if (x <= 1) niceBase = 1;
-    else if (x <= 2) niceBase = 2;
-    else if (x <= 5) niceBase = 5;
-    else niceBase = 10;
-    const step = niceBase * m;
-    const maxValue = step * (desired - 1);
-    return {
-      ticks: Array.from({ length: desired }, (_, i) => i * step),
-      maxValue
-    };
+    const maxValue = maxProb > 0 ? maxProb : 1;
+    const ticks = Array.from({ length: 5 }, (_, i) => (maxValue * i) / 4);
+    return { ticks, maxValue };
   }
 
   function draw() {
@@ -380,7 +365,7 @@ License: MIT
     }
 
     ctx.save();
-    const yLabelX = Math.max(12, marginLeft - 44);
+    const yLabelX = Math.max(12, marginLeft - 64);
     ctx.translate(yLabelX, marginTop + innerHeight / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
@@ -395,10 +380,13 @@ License: MIT
     if (prob === 0) return '0';
     const percent = prob * 100;
     if (percent >= 0.01) return `${percent.toFixed(2)}%`;
-    const [mantissaStr, expStr] = percent.toExponential(1).split('e');
-    const mantissa = Math.round(Number.parseFloat(mantissaStr));
-    const exp = Number.parseInt(expStr, 10);
-    return `${mantissa}×10${generateSuperscript(exp)} %`;
+    let exp = Math.floor(Math.log10(percent));
+    let mantissa = Number((percent / Math.pow(10, exp)).toFixed(1));
+    if (mantissa >= 10) {
+      mantissa = 1.0;
+      exp += 1;
+    }
+    return `${mantissa.toFixed(1)}×10${generateSuperscript(exp)} %`;
   }
 
   function updateHoverInfo() {
