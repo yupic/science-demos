@@ -86,14 +86,20 @@ License: MIT
       margin-top: 6px;
       margin-bottom: 10px;
     }
+    .prob-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
     .probability-row {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
     }
-    .probability-row input {
-      width: 120px;
+    .probability-row input[type="range"] {
+      width: 200px;
     }
     .probability-row .color-dot {
       width: 14px;
@@ -133,7 +139,6 @@ License: MIT
   <h1>Распределение числа выпавших орлов</h1>
   <p class="desc">Сравните гистограммы для разной вероятности выпадения орла. Укажите число монет, число бросков и несколько вариантов вероятностей, затем нажмите «Создать».</p>
   <div class="controls">
-    <button id="createBtn">Создать</button>
     <label class="mut-label">Монет:
       <input type="number" id="coinCount" min="1" max="5000" value="100" />
     </label>
@@ -143,7 +148,10 @@ License: MIT
   </div>
   <div class="probability-section">
     <div class="probability-list" id="probabilityList"></div>
-    <button id="addProbBtn">Добавить вероятность</button>
+    <div class="prob-actions">
+      <button id="addProbBtn">Добавить вероятность</button>
+      <button id="createBtn">Создать</button>
+    </div>
   </div>
   <div class="canvas-frame">
     <canvas id="histCanvas"></canvas>
@@ -192,9 +200,16 @@ License: MIT
     return `${(prob * 100).toFixed(2)}%`;
   }
 
+  function formatHeadsTails(probValue) {
+    const heads = probValue;
+    const tails = 100 - probValue;
+    return `орёл/решка: — ${heads}% / ${tails}%`;
+  }
+
   function createProbabilityRow(defaultValue = 50) {
     const row = document.createElement('div');
     row.className = 'probability-row';
+    const safeDefault = clampInt(defaultValue, 10, 90, 50);
 
     const colorDot = document.createElement('div');
     colorDot.className = 'color-dot';
@@ -206,16 +221,23 @@ License: MIT
     label.textContent = 'Вероятность выпадения орла, %:';
 
     const input = document.createElement('input');
-    input.type = 'number';
-    input.min = '0';
-    input.max = '100';
-    input.value = defaultValue;
-    input.addEventListener('change', () => {
-      const v = clampInt(input.value, 0, 100, defaultValue);
+    input.type = 'range';
+    input.min = '10';
+    input.max = '90';
+    input.value = safeDefault;
+    input.addEventListener('input', () => {
+      const v = clampInt(input.value, 10, 90, safeDefault);
       input.value = v;
+      probText.textContent = formatHeadsTails(v);
     });
 
     label.appendChild(input);
+
+    const probText = document.createElement('span');
+    probText.className = 'prob-display';
+    probText.style.fontSize = '12px';
+    probText.style.color = '#444';
+    probText.textContent = formatHeadsTails(safeDefault);
 
     const removeBtn = document.createElement('button');
     removeBtn.textContent = 'Удалить';
@@ -236,6 +258,7 @@ License: MIT
 
     row.appendChild(colorDot);
     row.appendChild(label);
+    row.appendChild(probText);
     row.appendChild(removeBtn);
     row.appendChild(info);
     probabilityList.appendChild(row);
@@ -434,9 +457,11 @@ License: MIT
   function collectProbabilities() {
     const values = [];
     Array.from(probabilityList.children).forEach((row, idx) => {
-      const input = row.querySelector('input');
-      const value = clampInt(input.value, 0, 100, 50);
+      const input = row.querySelector('input[type="range"]');
+      const value = clampInt(input?.value, 10, 90, 50);
       input.value = value;
+      const probText = row.querySelector('.prob-display');
+      if (probText) probText.textContent = formatHeadsTails(value);
       const color = colors[idx % colors.length];
       values.push({ p: value / 100, label: `${value}%`, color });
     });
