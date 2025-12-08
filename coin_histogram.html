@@ -342,12 +342,17 @@ License: MIT
     if (Math.abs(max - min) < 1e-6) {
       return { min: min - 1, max: max + 1 };
     }
-    return { min, max };
+    return {
+      min: Math.max(0, min),
+      max: Math.min(coinCount, max)
+    };
   }
 
   function draw() {
     const { min: xMin, max: xMax } = calculateRange();
-    const xRange = xMax - xMin || 1;
+    const xMinEdge = xMin - 0.5;
+    const xMaxEdge = xMax + 0.5;
+    const xRange = xMaxEdge - xMinEdge || 1;
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
     const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.6, 520));
@@ -381,12 +386,14 @@ License: MIT
     for (let i = 0; i < counts.length; i++) {
       const count = counts[i];
       if (count === 0) continue;
-      const x = marginLeft + (i - xMin) * barWidth;
+      const xLeft = marginLeft + ((i - 0.5 - xMinEdge) / xRange) * innerWidth;
       const prob = totalTrials > 0 ? count / totalTrials : 0;
       const h = Math.max(2, prob * scaleY);
       const y = marginTop + innerHeight - h;
-      if (x + barWidth < marginLeft || x > width - marginRight) continue;
-      ctx.fillRect(x, y, Math.max(1, barWidth * 0.9), h);
+      if (xLeft + barWidth < marginLeft || xLeft > width - marginRight) continue;
+      const drawWidth = Math.max(1, barWidth * 0.9);
+      const x = xLeft + (barWidth - drawWidth) / 2;
+      ctx.fillRect(x, y, drawWidth, h);
     }
 
     ctx.strokeStyle = '#ccc';
@@ -409,7 +416,7 @@ License: MIT
     };
 
     for (const value of labelValues) {
-      const x = marginLeft + ((value - xMin) / xRange) * innerWidth;
+      const x = marginLeft + ((value - xMinEdge) / xRange) * innerWidth;
       const label = formatTick(value);
       ctx.fillText(label, x, marginTop + innerHeight + 6);
     }
@@ -498,7 +505,9 @@ License: MIT
     const marginRight = 16;
     const innerWidth = rect.width - marginLeft - marginRight;
     const { min: xMin, max: xMax } = calculateRange();
-    const xRange = xMax - xMin || 1;
+    const xMinEdge = xMin - 0.5;
+    const xMaxEdge = xMax + 0.5;
+    const xRange = xMaxEdge - xMinEdge || 1;
 
     if (x < marginLeft || x > rect.width - marginRight) {
       updateHoverInfo();
@@ -506,7 +515,8 @@ License: MIT
     }
 
     const barWidth = innerWidth / xRange;
-    let idx = Math.round(xMin + (x - marginLeft) / barWidth);
+    const value = xMinEdge + ((x - marginLeft) / innerWidth) * xRange;
+    let idx = Math.round(value);
     idx = Math.max(0, Math.min(coinCount, idx));
     hoveredIndex = idx;
     updateHoverInfo();
