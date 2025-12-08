@@ -204,13 +204,13 @@ License: MIT
   function formatHeadsTails(probValue) {
     const heads = probValue;
     const tails = 100 - probValue;
-    return `орёл/решка: — ${heads}% / ${tails}%`;
+    return `орёл/решка: ${heads}% / ${tails}%`;
   }
 
   function createProbabilityRow(defaultValue = 50) {
     const row = document.createElement('div');
     row.className = 'probability-row';
-    const safeDefault = clampInt(defaultValue, 5, 95, 50);
+    const safeDefault = clampInt(defaultValue, 0, 100, 50);
 
     const colorDot = document.createElement('div');
     colorDot.className = 'color-dot';
@@ -223,12 +223,12 @@ License: MIT
 
     const input = document.createElement('input');
     input.type = 'range';
-    input.min = '5';
-    input.max = '95';
-    input.step = '5';
+    input.min = '0';
+    input.max = '100';
+    input.step = '1';
     input.value = safeDefault;
     input.addEventListener('input', () => {
-      const v = clampInt(input.value, 5, 95, safeDefault);
+      const v = clampInt(input.value, 0, 100, safeDefault);
       input.value = v;
       probText.textContent = formatHeadsTails(v);
       handleCreate();
@@ -242,6 +242,11 @@ License: MIT
     probText.style.color = '#444';
     probText.textContent = formatHeadsTails(safeDefault);
 
+    const meanText = document.createElement('span');
+    meanText.className = 'mean-display';
+    meanText.style.fontSize = '12px';
+    meanText.style.color = '#444';
+
     const info = document.createElement('span');
     info.className = 'prob-info';
     info.style.fontSize = '12px';
@@ -250,6 +255,7 @@ License: MIT
     row.appendChild(colorDot);
     row.appendChild(label);
     row.appendChild(probText);
+    row.appendChild(meanText);
     row.appendChild(info);
     probabilityList.appendChild(row);
   }
@@ -311,10 +317,8 @@ License: MIT
       sum += value;
     }
 
-    const minDisplayProb = 0.0005; // 0.05%
     for (let k = 0; k <= coinCount; k++) {
-      const normalized = probs[k] / sum;
-      probs[k] = normalized <= minDisplayProb ? 0 : normalized;
+      probs[k] = probs[k] / sum;
     }
 
     return probs;
@@ -450,7 +454,8 @@ License: MIT
         const prob = probs[i];
         if (prob === 0) continue;
         const xLeft = marginLeft + ((i - 0.5 - xMinEdge) / xRange) * innerWidth;
-        const h = Math.max(2, prob * scaleY);
+        const h = prob * scaleY;
+        if (h < 1) continue;
         const y = marginTop + innerHeight - h;
         if (xLeft + barWidth < marginLeft || xLeft > width - marginRight) continue;
         const drawWidth = Math.max(1, barWidth * 0.9);
@@ -514,14 +519,16 @@ License: MIT
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  function collectProbabilities() {
+  function collectProbabilities(coinCountValue) {
     const values = [];
     Array.from(probabilityList.children).forEach((row, idx) => {
       const input = row.querySelector('input[type="range"]');
-      const value = clampInt(input?.value, 5, 95, 50);
+      const value = clampInt(input?.value, 0, 100, 50);
       input.value = value;
       const probText = row.querySelector('.prob-display');
       if (probText) probText.textContent = formatHeadsTails(value);
+      const meanText = row.querySelector('.mean-display');
+      if (meanText) meanText.textContent = `Среднее: ${(coinCountValue * (value / 100)).toFixed(2)}`;
       const color = colors[idx % colors.length];
       values.push({ p: value / 100, label: `${value}%`, color });
     });
@@ -591,7 +598,7 @@ License: MIT
     const coinCountValue = clampInt(coinInput.value, 1, 5000, 100);
     coinInput.value = coinCountValue;
 
-    const probabilities = collectProbabilities();
+    const probabilities = collectProbabilities(coinCountValue);
     if (probabilities.length === 0) {
       addDefaultRow();
       return;
