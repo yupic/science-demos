@@ -1,0 +1,483 @@
+<!--
+Interactive science demo.
+Part of the "science-demos" project.
+
+GitHub: https://github.com/yupic/science-demos
+YouTube: https://www.youtube.com/@autism-ru
+Telegram: https://t.me/autism_science
+License: MIT
+-->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Распределение числа орлов</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --fg: #222;
+      --accent: #2c7be5;
+      --muted: #666;
+      --card: #fff;
+      --border: #ddd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    .container {
+      margin: 0 auto;
+      padding: 0 16px;
+      width: 100%;
+    }
+    h1 {
+      margin: 14px 0 6px;
+      font-size: 22px;
+    }
+    p.desc {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    button {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    button:hover { background: #f0f4ff; }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 0 0 rgba(0,0,0,0.05);
+    }
+    .card {
+      background: var(--card);
+      border-radius: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .stats {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .mut-label, .slider-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+    }
+    .mut-label input {
+      padding: 6px 8px;
+      font-size: 14px;
+      width: 90px;
+    }
+    .slider-label input[type="range"] {
+      width: 200px;
+    }
+    .slider-value {
+      min-width: 52px;
+      display: inline-block;
+      text-align: left;
+      color: var(--muted);
+    }
+    .canvas-frame {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      overflow: hidden;
+      position: relative;
+      width: 100%;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #fff;
+    }
+    .note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+    @media (max-width: 600px) {
+      h1 { font-size: 20px; }
+      .slider-label input[type="range"] { width: 150px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Распределение числа выпавших орлов</h1>
+  <p class="desc">Сколько орлов выпадает при многократном подбрасывании набора монет. Нажмите «Старт», чтобы увидеть, как гистограмма стремится к биномиальному распределению.</p>
+  <div class="card">
+    <div class="controls">
+      <label class="mut-label">Монет:
+        <input type="number" id="coinCount" min="1" max="5000" value="100" />
+      </label>
+      <button id="stepBtn">1 шаг</button>
+      <button id="toggleBtn">Старт</button>
+      <button id="resetBtn">Сбросить</button>
+      <label class="slider-label">Скорость:
+        <input type="range" id="speed" min="1" max="20" value="1" />
+        <span id="speedValue" class="slider-value">1× (30/с)</span>
+      </label>
+    </div>
+    <div class="stats">Сделано бросков: <span id="trialCount">0</span></div>
+    <div class="canvas-frame">
+      <canvas id="histCanvas"></canvas>
+    </div>
+  </div>
+</div>
+<div style="margin-bottom:10px; font-size:12px; color:#999; text-align:center;">
+  © autism_science • MIT License •
+  <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener" style="color:#999;">GitHub</a> •
+  <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener" style="color:#999;">YouTube</a> •
+  <a href="https://t.me/autism_science" target="_blank" rel="noopener" style="color:#999;">Telegram</a>
+</div>
+<script>
+  const canvas = document.getElementById('histCanvas');
+  const ctx = canvas.getContext('2d');
+  const coinInput = document.getElementById('coinCount');
+  const stepBtn = document.getElementById('stepBtn');
+  const toggleBtn = document.getElementById('toggleBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const speedSlider = document.getElementById('speed');
+  const speedValue = document.getElementById('speedValue');
+  const trialCountSpan = document.getElementById('trialCount');
+
+  let coinCount = 100;
+  let counts = new Array(coinCount + 1).fill(0);
+  let totalTrials = 0;
+  let running = false;
+  let lastTime = 0;
+  let fractionalSteps = 0;
+  let hoveredIndex = null;
+  let animationId = null;
+
+  const hoverInfoSpan = (() => {
+    const statsLine = document.querySelector('.stats');
+    const span = document.createElement('span');
+    span.style.marginLeft = '12px';
+    span.id = 'hoverInfo';
+    span.textContent = '';
+    statsLine.appendChild(span);
+    return span;
+  })();
+
+  function defaultDisplayIndex() {
+    const center = Math.floor(coinCount / 2);
+    const alt = Math.min(coinCount, center + 1);
+    if (coinCount % 2 === 0 && totalTrials > 0) {
+      return (counts[alt] || 0) > (counts[center] || 0) ? alt : center;
+    }
+    return center;
+  }
+
+  function updateSpeedLabel() {
+    const s = Number(speedSlider.value);
+    const rate = 30 * Math.pow(2, s - 1);
+    speedValue.textContent = `${s}× (${rate.toLocaleString('ru-RU')}/с)`;
+  }
+
+  function resetSimulation() {
+    const parsed = parseInt(coinInput.value, 10);
+    coinCount = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 5000) : 100;
+    coinInput.value = coinCount;
+    counts = new Array(coinCount + 1).fill(0);
+    totalTrials = 0;
+    fractionalSteps = 0;
+    hoveredIndex = null;
+    trialCountSpan.textContent = totalTrials.toLocaleString('ru-RU');
+    updateHoverInfo();
+    draw();
+  }
+
+  function simulateOnce() {
+    let heads = 0;
+    for (let i = 0; i < coinCount; i++) {
+      if (Math.random() < 0.5) heads++;
+    }
+    counts[heads] += 1;
+    totalTrials += 1;
+  }
+
+  function simulateMany(n) {
+    for (let i = 0; i < n; i++) simulateOnce();
+  }
+
+  function formatCount(n) {
+    return n.toLocaleString('ru-RU');
+  }
+
+  function generateSuperscript(exp) {
+    const map = {
+      '-': '\u207b',
+      '0': '\u2070',
+      '1': '\u00b9',
+      '2': '\u00b2',
+      '3': '\u00b3',
+      '4': '\u2074',
+      '5': '\u2075',
+      '6': '\u2076',
+      '7': '\u2077',
+      '8': '\u2078',
+      '9': '\u2079'
+    };
+    return String(exp)
+      .split('')
+      .map((c) => map[c] ?? c)
+      .join('');
+  }
+
+  function generateXTicks(n, widthPx, minLabelGapPx = 34) {
+    const width = Math.max(0, widthPx);
+    const maxLabels = Math.floor(width / minLabelGapPx);
+    if (maxLabels < 2) return [0, n];
+
+    if (n + 1 <= maxLabels) {
+      return Array.from({ length: n + 1 }, (_, i) => i);
+    }
+
+    const targetLabels = Math.min(maxLabels, 31);
+    let rawStep = n / (targetLabels - 1);
+    const m = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const x = rawStep / m;
+    let niceBase;
+    if (x <= 1) niceBase = 1;
+    else if (x <= 2) niceBase = 2;
+    else if (x <= 5) niceBase = 5;
+    else niceBase = 10;
+    let step = niceBase * m;
+
+    const buildTicks = () => {
+      const ticks = [];
+      for (let v = 0; v <= n; v += step) {
+        ticks.push(Math.round(v));
+      }
+      if (ticks[0] !== 0) ticks.unshift(0);
+      // if (ticks[ticks.length - 1] !== n) ticks.push(n);
+      return ticks;
+    };
+
+    let ticks = buildTicks();
+    if (ticks.length > maxLabels) {
+      step *= 2;
+      ticks = buildTicks();
+    }
+    return ticks;
+  }
+
+  function generateYTicks(maxProb) {
+    const maxValue = maxProb > 0 ? maxProb : 1;
+    const ticks = Array.from({ length: 5 }, (_, i) => (maxValue * i) / 4);
+    return { ticks, maxValue };
+  }
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
+    const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.6, 520));
+    canvas.style.height = `${targetHeight}px`;
+    canvas.width = Math.floor(displayWidth * dpr);
+    canvas.height = Math.floor(targetHeight * dpr);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+    const marginLeft = 64;
+    const marginRight = 16;
+    const marginBottom = 40;
+    const marginTop = 18;
+    const innerWidth = width - marginLeft - marginRight;
+    const innerHeight = height - marginTop - marginBottom;
+
+    const maxCount = Math.max(...counts, 0);
+    const maxProb = totalTrials > 0 && maxCount > 0 ? maxCount / totalTrials : 0;
+    const { ticks: yTicks, maxValue: yMax } = generateYTicks(maxProb);
+    const scaleY = yMax > 0 ? innerHeight / yMax : 0;
+
+    ctx.fillStyle = '#f8f9fc';
+    ctx.fillRect(marginLeft, marginTop, innerWidth, innerHeight);
+
+    const barWidth = innerWidth / (coinCount + 1);
+    ctx.fillStyle = '#2c7be5';
+    for (let i = 0; i < counts.length; i++) {
+      const count = counts[i];
+      if (count === 0) continue;
+      const x = marginLeft + i * barWidth;
+      const prob = totalTrials > 0 ? count / totalTrials : 0;
+      const h = Math.max(2, prob * scaleY);
+      const y = marginTop + innerHeight - h;
+      ctx.fillRect(x, y, Math.max(1, barWidth - 1), h);
+    }
+
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(marginLeft, marginTop + innerHeight);
+    ctx.lineTo(width - marginRight, marginTop + innerHeight);
+    ctx.stroke();
+
+    ctx.fillStyle = '#444';
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const labelValues = generateXTicks(coinCount, innerWidth);
+
+    for (const value of labelValues) {
+      const x = marginLeft + (value / coinCount) * innerWidth;
+      ctx.fillText(value.toString(), x, marginTop + innerHeight + 6);
+    }
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (const prob of yTicks) {
+      const y = marginTop + innerHeight - (prob / yMax) * innerHeight;
+      ctx.fillText(`${(prob * 100).toFixed(2)}%`, marginLeft - 8, y);
+    }
+
+    ctx.save();
+    const yLabelX = Math.max(12, marginLeft - 64);
+    ctx.translate(yLabelX, marginTop + innerHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Вероятность', 0, 0);
+    ctx.restore();
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  function formatProbability(prob) {
+    if (prob === 0) return '0';
+    const percent = prob * 100;
+    if (percent >= 0.01) return `${percent.toFixed(2)}%`;
+    let exp = Math.floor(Math.log10(percent));
+    let mantissa = Number((percent / Math.pow(10, exp)).toFixed(1));
+    if (mantissa >= 10) {
+      mantissa = 1.0;
+      exp += 1;
+    }
+    return `${mantissa.toFixed(1)}×10${generateSuperscript(exp)} %`;
+  }
+
+  function updateHoverInfo() {
+    const index = hoveredIndex === null ? defaultDisplayIndex() : hoveredIndex;
+    const count = counts[index] || 0;
+    const prob = totalTrials > 0 ? count / totalTrials : 0;
+    hoverInfoSpan.textContent = `Орлы/решки: ${index}/${coinCount - index}, выпало ${formatCount(count)} раз, вероятность ${formatProbability(prob)}`;
+  }
+
+  function toggleRun() {
+    running = !running;
+    toggleBtn.textContent = running ? 'Пауза' : 'Старт';
+    if (running) {
+      lastTime = 0;
+      if (animationId === null) {
+        animationId = requestAnimationFrame(loop);
+      }
+    }
+  }
+
+  function loop(timestamp) {
+    if (!running) {
+      animationId = null;
+      lastTime = 0;
+      return;
+    }
+
+    if (!lastTime) lastTime = timestamp;
+    const delta = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
+    const speed = Number(speedSlider.value);
+    const rate = 30 * Math.pow(2, speed - 1);
+    const expectedSteps = delta * rate + fractionalSteps;
+    let steps = Math.floor(expectedSteps);
+    fractionalSteps = expectedSteps - steps;
+    steps = Math.min(steps, 30000);
+    if (steps > 0) {
+      simulateMany(steps);
+      trialCountSpan.textContent = formatCount(totalTrials);
+    }
+
+    draw();
+    updateHoverInfo();
+    animationId = requestAnimationFrame(loop);
+  }
+
+  function handleMouseMove(event) {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const marginLeft = 64;
+    const marginRight = 16;
+    const innerWidth = rect.width - marginLeft - marginRight;
+
+    if (x < marginLeft || x > rect.width - marginRight) {
+      updateHoverInfo();
+      return;
+    }
+
+    const barWidth = innerWidth / (coinCount + 1);
+    let idx = Math.floor((x - marginLeft) / barWidth);
+    idx = Math.max(0, Math.min(coinCount, idx));
+    hoveredIndex = idx;
+    updateHoverInfo();
+  }
+
+  function hideTooltip() {
+    updateHoverInfo();
+  }
+
+  coinInput.addEventListener('change', resetSimulation);
+  stepBtn.addEventListener('click', () => {
+    simulateMany(1);
+    trialCountSpan.textContent = formatCount(totalTrials);
+    draw();
+    updateHoverInfo();
+  });
+  toggleBtn.addEventListener('click', toggleRun);
+  resetBtn.addEventListener('click', () => {
+    running = false;
+    toggleBtn.textContent = 'Старт';
+    resetSimulation();
+  });
+  speedSlider.addEventListener('input', updateSpeedLabel);
+
+  canvas.addEventListener('mousemove', handleMouseMove);
+  canvas.addEventListener('mouseleave', hideTooltip);
+  window.addEventListener('resize', draw);
+
+  updateSpeedLabel();
+  resetSimulation();
+</script>
+</body>
+</html>
