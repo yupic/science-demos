@@ -279,7 +279,7 @@ License: MIT
     else if (x <= 2) niceBase = 2;
     else if (x <= 5) niceBase = 5;
     else niceBase = 10;
-    let step = niceBase * m;
+    let step = Math.max(1, niceBase * m);
 
     const buildTicks = () => {
       const ticks = [];
