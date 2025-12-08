@@ -151,8 +151,13 @@ License: MIT
     <div class="canvas-frame">
       <canvas id="histCanvas"></canvas>
     </div>
-    <div class="note">Высота гистограммы автоматически подстраивается под текущий максимум. Если сумма появлялась хотя бы один раз, её столбик имеет минимальную высоту 2 пикселя. Подписи по оси X подстраиваются под ширину окна: для малых N выводятся все числа, для больших — равномерные и «круглые» значения с обязательным N.</div>
   </div>
+</div>
+<div style="margin-bottom:10px; font-size:12px; color:#999; text-align:center;">
+  © autism_science • MIT License •
+  <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener" style="color:#999;">GitHub</a> •
+  <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener" style="color:#999;">YouTube</a> •
+  <a href="https://t.me/autism_science" target="_blank" rel="noopener" style="color:#999;">Telegram</a>
 </div>
 <script>
   const canvas = document.getElementById('histCanvas');
@@ -258,7 +263,7 @@ License: MIT
       return Array.from({ length: n + 1 }, (_, i) => i);
     }
 
-    const targetLabels = Math.min(maxLabels, 11);
+    const targetLabels = Math.min(maxLabels, 31);
     let rawStep = n / (targetLabels - 1);
     const m = Math.pow(10, Math.floor(Math.log10(rawStep)));
     const x = rawStep / m;
@@ -275,7 +280,7 @@ License: MIT
         ticks.push(Math.round(v));
       }
       if (ticks[0] !== 0) ticks.unshift(0);
-      if (ticks[ticks.length - 1] !== n) ticks.push(n);
+      // if (ticks[ticks.length - 1] !== n) ticks.push(n);
       return ticks;
     };
 
@@ -309,7 +314,8 @@ License: MIT
     const innerHeight = height - marginTop - marginBottom;
 
     const maxCount = Math.max(...counts, 0);
-    const scaleY = maxCount > 0 ? innerHeight / maxCount : 0;
+    const maxProb = totalTrials > 0 && maxCount > 0 ? maxCount / totalTrials : 0;
+    const scaleY = maxProb > 0 ? innerHeight / maxProb : 0;
 
     ctx.fillStyle = '#f8f9fc';
     ctx.fillRect(marginLeft, marginTop, innerWidth, innerHeight);
@@ -320,7 +326,8 @@ License: MIT
       const count = counts[i];
       if (count === 0) continue;
       const x = marginLeft + i * barWidth;
-      const h = Math.max(2, count * scaleY);
+      const prob = totalTrials > 0 ? count / totalTrials : 0;
+      const h = Math.max(2, prob * scaleY);
       const y = marginTop + innerHeight - h;
       ctx.fillRect(x, y, Math.max(1, barWidth - 1), h);
     }
@@ -343,14 +350,12 @@ License: MIT
       ctx.fillText(value.toString(), x, marginTop + innerHeight + 6);
     }
 
-    const maxProb = totalTrials > 0 && maxCount > 0 ? maxCount / totalTrials : 1;
-    const probScale = maxCount > 0 ? innerHeight * (totalTrials / maxCount) : innerHeight;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    for (let i = 0; i < 4; i++) {
-      const prob = (maxProb * i) / 3;
-      const y = marginTop + innerHeight - prob * probScale;
-      ctx.fillText(prob.toFixed(2), marginLeft - 8, y);
+    for (let i = 0; i < 5; i++) {
+      const prob = i / 4;
+      const y = marginTop + innerHeight - prob * innerHeight;
+      ctx.fillText(`${(prob * 100).toFixed(2)}%`, marginLeft - 8, y);
     }
 
     ctx.save();
