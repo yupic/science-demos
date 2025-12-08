@@ -374,20 +374,33 @@ License: MIT
       return defaultRange;
     }
 
-    let minObserved = null;
-    let maxObserved = null;
+    let minObserved = Infinity;
+    let maxObserved = -Infinity;
 
-    simulatedDatasets.forEach(({ probs }) => {
+    simulatedDatasets.forEach(({ probs, p, coinCount }) => {
+      const n = coinCount ?? fallbackCoinCount;
+      if (Number.isFinite(p) && Number.isFinite(n)) {
+        const mean = n * p;
+        const variance = n * p * (1 - p);
+        const sigma = Math.sqrt(variance);
+        const spread = Math.max(1, sigma * 5);
+        const localMin = Math.max(0, Math.floor(mean - spread));
+        const localMax = Math.min(n, Math.ceil(mean + spread));
+        minObserved = Math.min(minObserved, localMin);
+        maxObserved = Math.max(maxObserved, localMax);
+        return;
+      }
+
       if (!probs) return;
       for (let i = 0; i < probs.length; i++) {
         if (probs[i] > 0) {
-          if (minObserved === null) minObserved = i;
-          maxObserved = i;
+          minObserved = Math.min(minObserved, i);
+          maxObserved = Math.max(maxObserved, i);
         }
       }
     });
 
-    if (minObserved === null) return defaultRange;
+    if (!Number.isFinite(minObserved) || !Number.isFinite(maxObserved)) return defaultRange;
     if (minObserved === maxObserved) {
       const min = Math.max(0, minObserved - 1);
       const max = Math.min(fallbackCoinCount, maxObserved + 1);
@@ -606,7 +619,7 @@ License: MIT
 
     const simulatedDatasets = probabilities.map(({ p, label, color }) => {
       const probs = binomialProbs(coinCountValue, p);
-      return { probs, label, color };
+      return { probs, label, color, p, coinCount: coinCountValue };
     });
 
     datasets = simulatedDatasets;
