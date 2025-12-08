@@ -136,12 +136,12 @@ License: MIT
   <p class="desc">Сколько орлов выпадает при многократном подбрасывании набора монет. Нажмите «Старт», чтобы увидеть, как гистограмма стремится к биномиальному распределению.</p>
   <div class="card">
     <div class="controls">
+      <button id="toggleBtn">Старт</button>
+      <button id="stepBtn">1 шаг</button>
+      <button id="resetBtn">Сбросить</button>
       <label class="mut-label">Монет:
         <input type="number" id="coinCount" min="1" max="5000" value="100" />
       </label>
-      <button id="stepBtn">1 шаг</button>
-      <button id="toggleBtn">Старт</button>
-      <button id="resetBtn">Сбросить</button>
       <label class="slider-label">Скорость:
         <input type="range" id="speed" min="1" max="20" value="1" />
         <span id="speedValue" class="slider-value">1× (30/с)</span>
@@ -365,7 +365,7 @@ License: MIT
     }
 
     ctx.save();
-    const yLabelX = Math.max(12, marginLeft - 64);
+    const yLabelX = Math.max(4, marginLeft - 74);
     ctx.translate(yLabelX, marginTop + innerHeight / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
@@ -381,12 +381,12 @@ License: MIT
     const percent = prob * 100;
     if (percent >= 0.01) return `${percent.toFixed(2)}%`;
     let exp = Math.floor(Math.log10(percent));
-    let mantissa = Number((percent / Math.pow(10, exp)).toFixed(1));
+    let mantissa = Number((percent / Math.pow(10, exp)).toFixed(0));
     if (mantissa >= 10) {
       mantissa = 1.0;
       exp += 1;
     }
-    return `${mantissa.toFixed(1)}×10${generateSuperscript(exp)} %`;
+    return `${mantissa.toFixed(0)}×10${generateSuperscript(exp)} %`;
   }
 
   function updateHoverInfo() {
