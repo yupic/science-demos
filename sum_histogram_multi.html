@@ -334,13 +334,13 @@ License: MIT
           ctx.fillText(actualPos.toFixed(2), x, marginTop + 20);
         });
       });
-      const meanX = marginLeft + (((mean - 0.5) - xMinEdge) / xRange) * innerWidth;
+      const meanX = marginLeft + (((mean) - xMinEdge) / xRange) * innerWidth;
       if (meanX >= marginLeft && meanX <= marginLeft + innerWidth) {
         ctx.strokeStyle = lineColor;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([2, 6]);
         ctx.beginPath();
-        ctx.moveTo(meanX, lineTop);
+        ctx.moveTo(meanX, marginTop);
         ctx.lineTo(meanX, marginTop + innerHeight);
         ctx.stroke();
         ctx.setLineDash([]);
@@ -482,7 +482,7 @@ License: MIT
       const clampedValue = Math.max(minValue, Math.min(maxValue, value));
       const relativeIndex = Math.round(clampedValue - dataset.offset);
       const prob = dataset.probs[relativeIndex] || 0;
-      info.innerHTML = `| Значение бара: <span class="value-strong">${dataset.offset + relativeIndex}</span> | Вероятность: <span class="value-strong">${(prob * 100).toFixed(2)}%</span>`;
+      info.innerHTML = `| Значение: <span class="value-strong">${dataset.offset + relativeIndex}</span> | Вероятность: <span class="value-strong">${(prob * 100).toFixed(2)}%</span>`;
     });
   }
 
