@@ -1,0 +1,422 @@
+<!--
+Interactive science demo.
+Part of the "science-demos" project.
+
+GitHub: https://github.com/yupic/science-demos
+YouTube: https://www.youtube.com/@autism-ru
+Telegram: https://t.me/autism_science
+License: MIT
+-->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Многосерийные гистограммы значений</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="container">
+  <h1>Гистограммы распределений значений</h1>
+  <p class="desc">Создайте несколько гистограмм, задавая среднее значение через ползунки. Можно указать количество значений и диапазон.</p>
+  <div class="controls">
+    <label class="mut-label">Количество значений:
+      <input type="number" id="valueCount" min="1" max="200000" value="100" />
+    </label>
+    <label class="mut-label">Минимум:
+      <input type="number" id="minValue" step="any" value="0" />
+    </label>
+    <label class="mut-label">Максимум:
+      <input type="number" id="maxValue" step="any" value="1" />
+    </label>
+    <label class="mut-label">Добавить/удалить гистограмму:</label>
+    <div class="prob-actions">
+      <button id="addProbBtn">➕</button>
+      <button id="removeProbBtn" disabled>❌</button>
+    </div>
+  </div>
+  <div class="probability-section">
+    <div class="probability-list" id="probabilityList"></div>
+  </div>
+  <div class="canvas-frame">
+    <canvas id="histCanvas"></canvas>
+  </div>
+</div>
+<div class="footer">
+  © autism_science • MIT License •
+  <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener">GitHub</a> •
+  <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener">YouTube</a> •
+  <a href="https://t.me/autism_science" target="_blank" rel="noopener">Telegram</a>
+</div>
+<script>
+  const canvas = document.getElementById('histCanvas');
+  const ctx = canvas.getContext('2d');
+  const valueCountInput = document.getElementById('valueCount');
+  const minValueInput = document.getElementById('minValue');
+  const maxValueInput = document.getElementById('maxValue');
+  const addProbBtn = document.getElementById('addProbBtn');
+  const removeProbBtn = document.getElementById('removeProbBtn');
+  const probabilityList = document.getElementById('probabilityList');
+
+  const colors = [
+    'rgba(44, 123, 229, 0.45)',
+    'rgba(227, 52, 47, 0.45)',
+    'rgba(52, 168, 83, 0.45)',
+    'rgba(255, 193, 7, 0.45)',
+    'rgba(156, 39, 176, 0.45)',
+    'rgba(0, 188, 212, 0.45)',
+    'rgba(255, 87, 34, 0.45)'
+  ];
+
+  let datasets = [];
+  let hoveredX = null;
+
+  function clampNumber(value, min, max, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    let result = n;
+    if (Number.isFinite(min)) result = Math.max(result, min);
+    if (Number.isFinite(max)) result = Math.min(result, max);
+    return result;
+  }
+
+  function createProbabilityRow(defaultValue = 50) {
+    const row = document.createElement('div');
+    row.className = 'probability-row';
+    const safeDefault = Math.min(Math.max(defaultValue, 0), 100);
+
+    const colorDot = document.createElement('div');
+    colorDot.className = 'color-dot';
+    const color = colors[(probabilityList.children.length) % colors.length];
+    colorDot.style.background = color;
+
+    const label = document.createElement('label');
+    label.className = 'mut-label';
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = '0';
+    input.max = '100';
+    input.step = '1';
+    input.value = safeDefault;
+    input.addEventListener('input', () => {
+      const v = Math.min(Math.max(Number(input.value), 0), 100);
+      input.value = v;
+      probText.innerHTML = `среднее ≈ <span class="value-strong">${v}%</span>`;
+      handleCreate();
+    });
+
+    label.appendChild(input);
+
+    const probText = document.createElement('span');
+    probText.className = 'prob-display';
+    probText.style.fontSize = '12px';
+    probText.style.color = '#444';
+    probText.innerHTML = `среднее ≈ <span class="value-strong">${safeDefault}%</span>`;
+
+    const meanText = document.createElement('span');
+    meanText.className = 'mean-display';
+    meanText.style.fontSize = '12px';
+    meanText.style.color = '#444';
+
+    const sdText = document.createElement('span');
+    sdText.className = 'sd-display';
+    sdText.style.fontSize = '12px';
+    sdText.style.color = '#444';
+
+    row.appendChild(colorDot);
+    row.appendChild(label);
+    row.appendChild(probText);
+    row.appendChild(meanText);
+    row.appendChild(sdText);
+    probabilityList.appendChild(row);
+  }
+
+  function refreshColorDots() {
+    Array.from(probabilityList.children).forEach((row, idx) => {
+      const dot = row.querySelector('.color-dot');
+      dot.style.background = colors[idx % colors.length];
+    });
+  }
+
+  function updateRemoveButtonState() {
+    removeProbBtn.disabled = probabilityList.children.length <= 1;
+  }
+
+  function addDefaultRow() {
+    createProbabilityRow(50);
+    updateRemoveButtonState();
+  }
+
+  function boxMuller() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  }
+
+  function generateDataset(meanPercent, count, minValue, maxValue) {
+    const range = maxValue - minValue;
+    const mean = minValue + (range * meanPercent) / 100;
+    const sd = Math.max(range / 12, Number.EPSILON);
+    const values = [];
+    for (let i = 0; i < count; i++) {
+      const z = boxMuller();
+      const value = mean + z * sd;
+      values.push(Math.min(Math.max(value, minValue), maxValue));
+    }
+    const sampleMean = values.reduce((acc, v) => acc + v, 0) / values.length;
+    const variance = values.reduce((acc, v) => acc + Math.pow(v - sampleMean, 2), 0) / (values.length || 1);
+    const sampleSd = Math.sqrt(variance);
+    return { values, mean: sampleMean, sd: sampleSd };
+  }
+
+  function buildHistogram(values, minValue, maxValue, binCount = 30) {
+    const bins = Array.from({ length: binCount }, () => 0);
+    const edges = [];
+    for (let i = 0; i <= binCount; i++) {
+      edges.push(minValue + (i * (maxValue - minValue)) / binCount);
+    }
+    values.forEach((val) => {
+      if (val < minValue || val > maxValue) return;
+      const idx = Math.min(binCount - 1, Math.floor(((val - minValue) / (maxValue - minValue)) * binCount));
+      bins[idx] += 1;
+    });
+    const maxCount = Math.max(...bins, 0);
+    return { bins, edges, maxCount };
+  }
+
+  function drawSdLines(mean, sd, minValue, maxValue, marginLeft, marginTop, innerWidth, innerHeight, color) {
+    const xRange = maxValue - minValue || 1;
+    const toX = (value) => marginLeft + ((value - minValue) / xRange) * innerWidth;
+    const levels = [1, 2, 3];
+    levels.forEach((multiplier, idx) => {
+      [mean - sd * multiplier, mean + sd * multiplier].forEach((pos) => {
+        if (pos < minValue || pos > maxValue) return;
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = color || `rgba(0,0,0,${0.5 - idx * 0.1})`;
+        ctx.globalAlpha = 0.9 - idx * 0.2;
+        ctx.beginPath();
+        const x = toX(pos);
+        ctx.moveTo(x, marginTop);
+        ctx.lineTo(x, marginTop + innerHeight);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      });
+    });
+  }
+
+  function draw(simulatedDatasets, minValue, maxValue) {
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
+    const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.6, 520));
+    canvas.style.height = `${targetHeight}px`;
+    canvas.width = Math.floor(displayWidth * dpr);
+    canvas.height = Math.floor(targetHeight * dpr);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+    const marginLeft = 64;
+    const marginRight = 16;
+    const marginBottom = 40;
+    const marginTop = 18;
+    const innerWidth = width - marginLeft - marginRight;
+    const innerHeight = height - marginTop - marginBottom;
+
+    ctx.fillStyle = '#f8f9fc';
+    ctx.fillRect(marginLeft, marginTop, innerWidth, innerHeight);
+
+    if (!simulatedDatasets || simulatedDatasets.length === 0) {
+      drawAxesOnly({ minValue, maxValue, marginLeft, marginTop, innerWidth, innerHeight, width, height });
+      return;
+    }
+
+    let globalMax = 0;
+    const histograms = simulatedDatasets.map((dataset) => {
+      const hist = buildHistogram(dataset.values, minValue, maxValue);
+      globalMax = Math.max(globalMax, hist.maxCount);
+      return { ...hist, dataset };
+    });
+
+    const scaleY = globalMax > 0 ? innerHeight / globalMax : 0;
+    const binCount = histograms[0]?.bins?.length || 0;
+    const barWidth = binCount > 0 ? innerWidth / binCount : 0;
+
+    histograms.forEach(({ bins, dataset }, idx) => {
+      ctx.fillStyle = colors[idx % colors.length];
+      bins.forEach((count, binIdx) => {
+        if (count === 0) return;
+        const x = marginLeft + binIdx * barWidth;
+        const h = count * scaleY;
+        const y = marginTop + innerHeight - h;
+        const drawWidth = Math.max(1, barWidth * 0.9);
+        ctx.fillRect(x + (barWidth - drawWidth) / 2, y, drawWidth, h);
+      });
+      drawSdLines(dataset.mean, dataset.sd, minValue, maxValue, marginLeft, marginTop, innerWidth, innerHeight, dataset.color);
+    });
+
+    drawAxesOnly({ minValue, maxValue, marginLeft, marginTop, innerWidth, innerHeight, width, height, maxY: globalMax });
+  }
+
+  function drawAxesOnly({ minValue, maxValue, marginLeft, marginTop, innerWidth, innerHeight, width, height, maxY = 1 }) {
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(marginLeft, marginTop + innerHeight);
+    ctx.lineTo(width - 16, marginTop + innerHeight);
+    ctx.stroke();
+
+    ctx.fillStyle = '#444';
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    const xTicks = generateXTicks({ min: minValue, max: maxValue }, innerWidth);
+    xTicks.forEach((value) => {
+      const x = marginLeft + ((value - minValue) / (maxValue - minValue || 1)) * innerWidth;
+      ctx.fillText(value.toFixed(2), x, marginTop + innerHeight + 6);
+    });
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const yTicks = generateYTicks(maxY).ticks;
+    const yMax = maxY || 1;
+    yTicks.forEach((tick) => {
+      const y = marginTop + innerHeight - (tick / yMax) * innerHeight;
+      ctx.fillText(tick.toFixed(0), marginLeft - 8, y);
+    });
+
+    ctx.save();
+    const yLabelX = Math.max(4, marginLeft - 74);
+    ctx.translate(yLabelX, marginTop + innerHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Количество значений', 0, 0);
+    ctx.restore();
+  }
+
+  function generateXTicks(domain, widthPx, minLabelGapPx = 34) {
+    const width = Math.max(0, widthPx);
+    const maxLabels = Math.floor(width / minLabelGapPx);
+    if (maxLabels < 2) return [];
+
+    const range = Math.abs(domain.max - domain.min);
+    if (range === 0) return [domain.min];
+
+    const targetLabels = Math.min(maxLabels, 31);
+    let rawStep = range / (targetLabels - 1);
+    const m = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const x = rawStep / m;
+    let niceBase;
+    if (x <= 1) niceBase = 1;
+    else if (x <= 2) niceBase = 2;
+    else if (x <= 5) niceBase = 5;
+    else niceBase = 10;
+    let step = Math.max(1, niceBase * m);
+
+    const buildTicks = () => {
+      const ticks = [];
+      const start = Math.ceil(domain.min / step) * step;
+      for (let v = start; v <= domain.max + step * 0.001; v += step) {
+        const rounded = Number((Math.round(v / step) * step).toFixed(10));
+        ticks.push(rounded);
+      }
+      return ticks;
+    };
+
+    let ticks = buildTicks();
+    if (ticks.length > maxLabels) {
+      step *= 2;
+      ticks = buildTicks();
+    }
+    return ticks;
+  }
+
+  function generateYTicks(maxValue) {
+    const maxVal = maxValue > 0 ? maxValue : 1;
+    const ticks = Array.from({ length: 5 }, (_, i) => Math.round((maxVal * i) / 4));
+    return { ticks, maxValue: maxVal };
+  }
+
+  function collectProbabilities() {
+    const values = [];
+    Array.from(probabilityList.children).forEach((row, idx) => {
+      const input = row.querySelector('input[type="range"]');
+      const value = Math.min(Math.max(Number(input?.value), 0), 100);
+      input.value = value;
+      const color = colors[idx % colors.length];
+      values.push({ meanPercent: value, color, row });
+    });
+    return values;
+  }
+
+  function updateInfo(datasetsInfo) {
+    datasetsInfo.forEach(({ row, dataset }) => {
+      const meanText = row.querySelector('.mean-display');
+      const sdText = row.querySelector('.sd-display');
+      if (meanText) meanText.innerHTML = `| Mean: <span class="value-strong">${dataset.mean.toFixed(3)}</span>`;
+      if (sdText) sdText.innerHTML = `| SD: <span class="value-strong">${dataset.sd.toFixed(3)}</span>`;
+    });
+  }
+
+  function handleCreate() {
+    const count = clampNumber(valueCountInput.value, 1, 200000, 100);
+    valueCountInput.value = count;
+    const minValue = Number(minValueInput.value);
+    const maxValue = Number(maxValueInput.value);
+    if (!Number.isFinite(minValue) || !Number.isFinite(maxValue) || minValue >= maxValue) {
+      return;
+    }
+
+    const probabilities = collectProbabilities();
+    if (probabilities.length === 0) {
+      addDefaultRow();
+      return;
+    }
+
+    const simulatedDatasets = probabilities.map(({ meanPercent, color }) => {
+      const dataset = generateDataset(meanPercent, count, minValue, maxValue);
+      return { ...dataset, color };
+    });
+
+    datasets = simulatedDatasets;
+    draw(datasets, minValue, maxValue);
+    updateInfo(probabilities.map((item, idx) => ({ row: item.row, dataset: datasets[idx] })));
+  }
+
+  addProbBtn.addEventListener('click', () => {
+    createProbabilityRow(50);
+    refreshColorDots();
+    updateRemoveButtonState();
+    handleCreate();
+  });
+
+  removeProbBtn.addEventListener('click', () => {
+    const rows = probabilityList.children;
+    if (rows.length <= 1) return;
+    probabilityList.removeChild(rows[rows.length - 1]);
+    refreshColorDots();
+    updateRemoveButtonState();
+    handleCreate();
+  });
+
+  [valueCountInput, minValueInput, maxValueInput].forEach((input) => {
+    input.addEventListener('input', handleCreate);
+  });
+
+  window.addEventListener('resize', () => handleCreate());
+
+  addDefaultRow();
+  handleCreate();
+  updateRemoveButtonState();
+</script>
+</body>
+</html>
