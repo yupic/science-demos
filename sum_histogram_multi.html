@@ -316,8 +316,9 @@ License: MIT
       levels.forEach((k) => {
         const positions = [mean - sigma * k, mean + sigma * k];
         positions.forEach((actualPos) => {
-          const drawPos = actualPos < mean ? Math.ceil(actualPos) : (actualPos > mean ? Math.floor(actualPos) : actualPos);
-          const x = marginLeft + ((drawPos - xMinEdge) / xRange) * innerWidth;
+          const basePos = actualPos < mean ? Math.ceil(actualPos) : (actualPos > mean ? Math.floor(actualPos) : actualPos);
+          const shiftedPos = basePos + (actualPos < mean ? -0.5 : (actualPos > mean ? 0.5 : 0));
+          const x = marginLeft + ((shiftedPos - xMinEdge) / xRange) * innerWidth;
           if (x < marginLeft || x > marginLeft + innerWidth) return;
           const sign = actualPos < mean ? '-' : '+';
           ctx.strokeStyle = lineColor;
@@ -332,7 +333,7 @@ License: MIT
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
           ctx.fillText(`${sign}${k}σ`, x, marginTop + 2);
-          ctx.fillText(actualPos.toFixed(2), x, marginTop + 20);
+          ctx.fillText(actualPos.toFixed(1), x, marginTop + 20);
         });
       });
       const meanX = marginLeft + (((mean) - xMinEdge) / xRange) * innerWidth;
@@ -450,7 +451,7 @@ License: MIT
         if (info) info.textContent = '';
         return;
       }
-      stats.innerHTML = `| Среднее: <span class="value-strong">${data.mean.toFixed(2)}</span> | σ: <span class="value-strong">${data.sigma.toFixed(2)}</span>`;
+      stats.innerHTML = `| Среднее: <span class="value-strong">${data.mean.toFixed(2)}</span> | σ: <span class="value-strong">${data.sigma.toFixed(1)}</span>`;
     });
     updateHoverInfo(hoveredValue);
   }
@@ -483,6 +484,10 @@ License: MIT
       const clampedValue = Math.max(minValue, Math.min(maxValue, value));
       const relativeIndex = Math.round(clampedValue - dataset.offset);
       const prob = dataset.probs[relativeIndex] || 0;
+      if (prob < 0.01) {
+        info.textContent = '';
+        return;
+      }
       info.innerHTML = `| Значение: <span class="value-strong">${dataset.offset + relativeIndex}</span> | Вероятность: <span class="value-strong">${(prob * 100).toFixed(2)}%</span>`;
     });
   }
