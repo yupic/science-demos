@@ -13,222 +13,15 @@ License: MIT
   <meta charset="utf-8" />
   <title>Эволюция длины шеи жирафа</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root {
-      --bg: #f5f5f5;
-      --fg: #222;
-      --accent: #2c7be5;
-      --accent2: #e67e22;
-      --muted: #666;
-      --card: #fff;
-      --border: #ddd;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--fg);
-    }
-    .container {
-      margin: 0 auto;
-      padding: 0 16px;
-    }
-    h1 {
-      margin: 0 0 8px;
-      font-size: 20px;
-    }
-    p.desc {
-      margin: 0 0 16px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 10px;
-      align-items: center;
-    }
-    button {
-      border: 1px solid var(--border);
-      background: var(--card);
-      border-radius: 6px;
-      padding: 8px 14px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
-    button:hover {
-      background: #f0f4ff;
-    }
-    button:active {
-      transform: translateY(1px);
-      box-shadow: 0 0 0 rgba(0,0,0,0.05);
-    }
-    .stats {
-      font-size: 14px;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
-    .stats span.value {
-      color: var(--fg);
-      font-weight: 600;
-      display: inline-block;
-      text-align: right;
-    }
-    .card {
-      background: var(--card);
-      border-radius: 8px;
-      padding: 9px 10px;
-      border: 1px solid var(--border);
-      margin-bottom: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-    }
-    .card-title {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-    canvas {
-      display: block;
-      width: auto;
-      max-width: 100%;
-      background: #fff;
-    }
-    .canvas-frame {
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: #fff;
-      overflow: hidden;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
-    }
-    .note {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 4px;
-    }
-    .mut-label, .slider-label {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 13px;
-    }
-    .mut-label input, .mut-label select {
-      padding: 4px 6px;
-      font-size: 13px;
-      border-radius: 6px;
-    }
-    .slider-label input[type="range"] {
-      width: 180px;
-    }
-    .slider-value {
-      min-width: 42px;
-      display: inline-block;
-      text-align: left;
-      color: var(--muted);
-    }
-    .charts-layout {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      flex-wrap: wrap;
-    }
-    .charts-column {
-      flex: 0 0 auto;
-      width: fit-content;
-      max-width: 100%;
-    }
-    .allele-card {
-      width: 248px;
-      flex-shrink: 0;
-    }
-    .allele-canvas {
-      display: block;
-    }
-    .allele-legend-swatch {
-      width: 14px;
-      height: 14px;
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      flex-shrink: 0;
-    }
-    .allele-info {
-      margin-top: 8px;
-      font-size: 13px;
-      color: var(--fg);
-      line-height: 1.4;
-    }
-    .allele-info-title {
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-    .allele-info-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 4px;
-      color: var(--muted);
-    }
-    .allele-info-row:last-child {
-      margin-bottom: 0;
-    }
-    .genome-card {
-      margin-top: 12px;
-    }
-    .genome-list {
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
-      white-space: pre;
-      font-size: 12px;
-      line-height: 1.4;
-      color: var(--fg);
-    }
-    .genome-letter {
-      color: #00f;
-    }
-    .genome-letter-A {
-      color: #fff;
-    }
-    .genome-letter-C {
-      color: #000;
-    }
-    .genome-letter-G {
-      color: #ff0;
-    }
-    .genome-letter-T {
-      color: #00f;
-    }
-    .instruction-card {
-      padding: 0;
-      max-width: 989px;
-    }
-    .instruction-summary {
-      cursor: pointer;
-      padding: 10px;
-      font-weight: 600;
-      list-style: none;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      user-select: none;
-    }
-    .instruction-summary::marker,
-    .instruction-summary::-webkit-details-marker {
-      display: none;
-    }
-    @media (max-width: 600px) {
-      h1 { font-size: 20px; }
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <div class="container">
   <h1>Симулятор эволюции длины шеи жирафа</h1>
-  <details id="instructionsDetails" class="card instruction-card">
-    <summary id="instructionsSummary" class="instruction-summary">
-      <span id="instructionsSummaryIcon" aria-hidden="true">▶</span>
-      <span id="instructionsSummaryText">Развернуть описание</span>
+  <details class="card instruction-card">
+    <summary class="instruction-summary">
+      <span class="summary-label-closed">Развернуть описание</span>
+      <span class="summary-label-open">Свернуть описание</span>
     </summary>
     <div style="padding:0 12px 12px 12px;">
       <div class="card-title">TL;DR — как смотреть на эту демку</div>
@@ -480,14 +273,14 @@ License: MIT
     <div class="charts-column">
       <div class="card">
         <div class="card-title">Распределение длины шеи в текущем поколении</div>
-        <div class="canvas-frame">
+        <div class="canvas-frame intrinsic-size">
           <canvas id="histCanvas" width="640" height="200"></canvas>
         </div>
       </div>
 
       <div class="card">
         <div class="card-title">Динамика средней длины шеи</div>
-        <div class="canvas-frame">
+        <div class="canvas-frame intrinsic-size">
           <canvas id="timeCanvas" width="640" height="200"></canvas>
         </div>
         <div class="note">
@@ -503,7 +296,7 @@ License: MIT
 
     <div class="card allele-card">
       <div class="card-title">Распределение аллелей</div>
-      <div class="canvas-frame">
+      <div class="canvas-frame intrinsic-size">
         <canvas id="alleleCanvas" class="allele-canvas" width="220" height="520" tabindex="0" aria-label="Распределение аллелей"></canvas>
       </div>
       <div class="note">Каждая строка — позиция генома; цвета показывают доли A/C/G/T в популяции. Кликните на строку, чтобы увидеть подробности.</div>
@@ -511,11 +304,11 @@ License: MIT
     </div>
   </div>
 </div>
-<div style="margin-bottom:10px; font-size:12px; color:#999; text-align:center;">
+<div class="footer">
   © autism_science • MIT License •
-  <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener" style="color:#999;">GitHub</a> •
-  <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener" style="color:#999;">YouTube</a> •
-  <a href="https://t.me/autism_science" target="_blank" rel="noopener" style="color:#999;">Telegram</a>
+  <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener">GitHub</a> •
+  <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener">YouTube</a> •
+  <a href="https://t.me/autism_science" target="_blank" rel="noopener">Telegram</a>
 </div>
 
 <script>
@@ -1055,33 +848,11 @@ License: MIT
   const sigmaValue = document.getElementById('sigmaValue');
   const alleleInfo = document.getElementById('alleleInfo');
   const topGenomes = document.getElementById('topGenomes');
-  const instructionsDetails = document.getElementById('instructionsDetails');
-  const instructionsSummaryIcon = document.getElementById('instructionsSummaryIcon');
-  const instructionsSummaryText = document.getElementById('instructionsSummaryText');
-
   let alleleInfoReady = false;
   let alleleInfoTitle = null;
   let alleleInfoPlaceholder = null;
   let alleleInfoContent = null;
   const alleleInfoValues = {};
-
-  const updateInstructionSummary = (isOpen) => {
-    if (!instructionsSummaryIcon || !instructionsSummaryText) return;
-    if (isOpen) {
-      instructionsSummaryIcon.textContent = '▼';
-      instructionsSummaryText.textContent = 'Свернуть описание';
-    } else {
-      instructionsSummaryIcon.textContent = '▶';
-      instructionsSummaryText.textContent = 'Развернуть описание';
-    }
-  };
-
-  if (instructionsDetails) {
-    updateInstructionSummary(instructionsDetails.open);
-    instructionsDetails.addEventListener('toggle', () => {
-      updateInstructionSummary(instructionsDetails.open);
-    });
-  }
 
   const clampAllelePos = (pos) => Math.min(Math.max(pos, 0), GENOME_LENGTH - 1);
 
