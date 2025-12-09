@@ -14,6 +14,12 @@ License: MIT
   <title>Эволюция длины шеи жирафа</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .instruction-card {
+      padding: 0;
+      max-width: 989px;
+    }
+  </style>
 </head>
 <body>
 <div class="container">
@@ -251,7 +257,7 @@ License: MIT
     </label>
     <label class="slider-label">
       Давление отбора (σ):
-      <input type="range" id="sigmaSlider" min="10" max="500" step="10" value="310" />
+      <input type="range" id="sigmaSlider" min="10" max="500" step="10" value="310" style="width: 180px;" />
       <span class="slider-value" id="sigmaValue">200</span>
     </label>
   </div>
@@ -304,7 +310,7 @@ License: MIT
     </div>
   </div>
 </div>
-<div class="footer">
+<div class="footer" style="margin-top: 0;">
   © autism_science • MIT License •
   <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener">GitHub</a> •
   <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener">YouTube</a> •

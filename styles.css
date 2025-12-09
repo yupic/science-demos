@@ -67,7 +67,7 @@ button:active {
 
 select,
 input[type="number"] {
-  padding: 6px 8px;
+  padding: 6px;
   font-size: 14px;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -82,9 +82,9 @@ input[type="number"] {
   font-size: 13px;
 }
 
-.mut-label input,
+.mut-label input:not([type="range"]),
 .mut-label select {
-  padding: 6px 8px;
+  padding: 6px;
   font-size: 14px;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -109,7 +109,7 @@ input[type="number"] {
 .stats {
   font-size: 14px;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .stats span.value {
@@ -135,7 +135,7 @@ input[type="number"] {
 }
 
 .canvas-frame.intrinsic-size {
-  width: fit-content;
+  width: auto;
   max-width: 100%;
 }
 
@@ -152,12 +152,14 @@ canvas {
 }
 
 .instruction-summary {
+  cursor: pointer;
+  padding: 8px;
+  font-weight: 600;
+  list-style: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  list-style: none;
+  user-select: none;
 }
 
 .instruction-summary::marker,
@@ -192,8 +194,7 @@ details[open] .instruction-summary .summary-label-closed {
 .note {
   font-size: 12px;
   color: var(--muted);
-  margin-top: 6px;
-  line-height: 1.5;
+  margin-top: 4px;
 }
 
 .value-strong {
