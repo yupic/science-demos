@@ -66,6 +66,7 @@ License: MIT
   let datasets = [];
   let scaleMode = 'full';
   let currentRange = { min: 0, max: 100 };
+  let hoveredValue = null;
 
   function clampInt(value, min, max, fallback) {
     const n = parseInt(value, 10);
@@ -306,6 +307,7 @@ License: MIT
   }
 
   function drawSigmaLines(simulatedDatasets, { xMinEdge, xRange, marginLeft, innerWidth, marginTop, innerHeight }) {
+    const lineTop = marginTop + 36;
     simulatedDatasets.forEach(({ mean, sigma, color }) => {
       if (!Number.isFinite(mean) || !Number.isFinite(sigma)) return;
       const lineColor = color.replace('0.5', '0.9');
@@ -313,13 +315,14 @@ License: MIT
       ctx.lineWidth = 1;
       levels.forEach((k) => {
         const positions = [mean - sigma * k, mean + sigma * k];
-        positions.forEach((pos) => {
+        positions.forEach((actualPos) => {
+          const pos = actualPos - 0.5;
           const x = marginLeft + ((pos - xMinEdge) / xRange) * innerWidth;
           if (x < marginLeft || x > marginLeft + innerWidth) return;
           ctx.strokeStyle = lineColor;
           ctx.setLineDash([4, 4]);
           ctx.beginPath();
-          ctx.moveTo(x, marginTop);
+          ctx.moveTo(x, lineTop);
           ctx.lineTo(x, marginTop + innerHeight);
           ctx.stroke();
           ctx.setLineDash([]);
@@ -328,16 +331,16 @@ License: MIT
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
           ctx.fillText(`${k}σ`, x, marginTop + 2);
-          ctx.fillText(pos.toFixed(2), x, marginTop + 20);
+          ctx.fillText(actualPos.toFixed(2), x, marginTop + 20);
         });
       });
-      const meanX = marginLeft + ((mean - xMinEdge) / xRange) * innerWidth;
+      const meanX = marginLeft + (((mean - 0.5) - xMinEdge) / xRange) * innerWidth;
       if (meanX >= marginLeft && meanX <= marginLeft + innerWidth) {
         ctx.strokeStyle = lineColor;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([2, 6]);
         ctx.beginPath();
-        ctx.moveTo(meanX, marginTop);
+        ctx.moveTo(meanX, lineTop);
         ctx.lineTo(meanX, marginTop + innerHeight);
         ctx.stroke();
         ctx.setLineDash([]);
@@ -391,11 +394,18 @@ License: MIT
     stats.style.fontSize = '12px';
     stats.style.color = '#444';
 
+    const info = document.createElement('span');
+    info.className = 'prob-info';
+    info.style.fontSize = '12px';
+    info.style.color = '#555';
+    info.textContent = '';
+
     row.appendChild(colorDot);
     row.appendChild(countLabel);
     row.appendChild(minLabel);
     row.appendChild(maxLabel);
     row.appendChild(stats);
+    row.appendChild(info);
     setList.appendChild(row);
   }
 
@@ -432,13 +442,76 @@ License: MIT
   function updateStatsDisplay(simulatedDatasets) {
     Array.from(setList.children).forEach((row, idx) => {
       const stats = row.querySelector('.prob-display');
+      const info = row.querySelector('.prob-info');
       const data = simulatedDatasets?.[idx];
       if (!stats || !data) {
         if (stats) stats.textContent = '';
+        if (info) info.textContent = '';
         return;
       }
       stats.innerHTML = `| Среднее: <span class="value-strong">${data.mean.toFixed(2)}</span> | σ: <span class="value-strong">${data.sigma.toFixed(2)}</span>`;
     });
+    updateHoverInfo(hoveredValue);
+  }
+
+  function updateHoverInfo(value = hoveredValue) {
+    if (!datasets.length) {
+      Array.from(setList.children).forEach((row) => {
+        const info = row.querySelector('.prob-info');
+        if (info) info.textContent = '';
+      });
+      return;
+    }
+
+    Array.from(setList.children).forEach((row, idx) => {
+      const info = row.querySelector('.prob-info');
+      const dataset = datasets[idx];
+      if (!info || !dataset) {
+        if (info) info.textContent = '';
+        return;
+      }
+
+      if (value === null) {
+        info.textContent = '';
+        return;
+      }
+
+      const maxIndex = dataset.probs.length - 1;
+      const minValue = dataset.offset;
+      const maxValue = dataset.offset + maxIndex;
+      const clampedValue = Math.max(minValue, Math.min(maxValue, value));
+      const relativeIndex = Math.round(clampedValue - dataset.offset);
+      const prob = dataset.probs[relativeIndex] || 0;
+      info.innerHTML = `| Значение бара: <span class="value-strong">${dataset.offset + relativeIndex}</span> | Вероятность: <span class="value-strong">${(prob * 100).toFixed(2)}%</span>`;
+    });
+  }
+
+  function handleMouseMove(event) {
+    if (!datasets.length) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const marginLeft = 64;
+    const marginRight = 16;
+    const innerWidth = rect.width - marginLeft - marginRight;
+    const xMinEdge = currentRange.min - 0.5;
+    const xMaxEdge = currentRange.max + 0.5;
+    const xRange = xMaxEdge - xMinEdge || 1;
+
+    if (x < marginLeft || x > rect.width - marginRight) {
+      hoveredValue = null;
+      updateHoverInfo();
+      return;
+    }
+
+    const value = xMinEdge + ((x - marginLeft) / innerWidth) * xRange;
+    hoveredValue = Math.round(value);
+    updateHoverInfo(hoveredValue);
+  }
+
+  function handleMouseLeave() {
+    hoveredValue = null;
+    updateHoverInfo();
   }
 
   function handleCreate() {
@@ -487,6 +560,8 @@ License: MIT
   });
 
   window.addEventListener('resize', () => draw(datasets));
+  canvas.addEventListener('mousemove', handleMouseMove);
+  canvas.addEventListener('mouseleave', handleMouseLeave);
 
   createSetRow();
   updateRemoveButtonState();
