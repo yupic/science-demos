@@ -11,7 +11,7 @@ License: MIT
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Распределение числа орлов (несколько вероятностей)</title>
+  <title>Сравнение вероятностей</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -97,7 +97,12 @@ License: MIT
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+      padding: 8px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
     }
+    .probability-row span { white-space: nowrap; }
     .probability-row input[type="range"] {
       width: 200px;
     }
@@ -115,6 +120,7 @@ License: MIT
       overflow: hidden;
       position: relative;
       width: 100%;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
     }
     canvas {
       display: block;
@@ -128,6 +134,9 @@ License: MIT
       margin-top: 6px;
       line-height: 1.5;
     }
+    .value-strong {
+      font-weight: 700;
+    }
     @media (max-width: 600px) {
       h1 { font-size: 20px; }
       .probability-row input { width: 100px; }
@@ -136,8 +145,8 @@ License: MIT
 </head>
 <body>
 <div class="container">
-  <h1>Распределение числа выпавших орлов</h1>
-  <p class="desc">Сравните гистограммы для разной вероятности выпадения орла. Укажите число монет и несколько вариантов вероятностей — распределения обновляются сразу при изменениях.</p>
+  <h1>Сравнение распределений выпадения орлов</h1>
+  <p class="desc">Сравните гистограммы для разной вероятности выпадения орла. Укажите число монет и несколько вариантов вероятностей.</p>
   <div class="controls">
     <label class="mut-label">Монет:
       <input type="number" id="coinCount" min="1" max="5000" value="100" />
@@ -148,6 +157,7 @@ License: MIT
         <option value="auto">Авто</option>
       </select>
     </label>
+    <label class="mut-label">Добавить/удалить гистограмму:</label>
     <div class="prob-actions">
       <button id="addProbBtn">➕</button>
       <button id="removeProbBtn" disabled>❌</button>
@@ -159,7 +169,6 @@ License: MIT
   <div class="canvas-frame">
     <canvas id="histCanvas"></canvas>
   </div>
-  <div class="note">Цвета гистограмм полупрозрачные, поэтому распределения могут накладываться друг на друга.</div>
 </div>
 <div style="margin: 10px 0; font-size:12px; color:#999; text-align:center;">
   © autism_science • MIT License •
@@ -204,7 +213,7 @@ License: MIT
   function formatHeadsTails(probValue) {
     const heads = probValue;
     const tails = 100 - probValue;
-    return `орёл/решка: ${heads}% / ${tails}%`;
+    return `орёл/решка: <span class="value-strong">${heads}%</span> / <span class="value-strong">${tails}%</span>`;
   }
 
   function createProbabilityRow(defaultValue = 50) {
@@ -219,7 +228,7 @@ License: MIT
 
     const label = document.createElement('label');
     label.className = 'mut-label';
-    label.textContent = 'Вероятность выпадения орла, %:';
+    //label.textContent = 'Вероятность выпадения орла, %:';
 
     const input = document.createElement('input');
     input.type = 'range';
@@ -230,7 +239,7 @@ License: MIT
     input.addEventListener('input', () => {
       const v = clampInt(input.value, 0, 100, safeDefault);
       input.value = v;
-      probText.textContent = formatHeadsTails(v);
+      probText.innerHTML = `${formatHeadsTails(v)}`;
       handleCreate();
     });
 
@@ -240,7 +249,7 @@ License: MIT
     probText.className = 'prob-display';
     probText.style.fontSize = '12px';
     probText.style.color = '#444';
-    probText.textContent = formatHeadsTails(safeDefault);
+    probText.innerHTML = `${formatHeadsTails(safeDefault)}`;
 
     const meanText = document.createElement('span');
     meanText.className = 'mean-display';
@@ -539,9 +548,11 @@ License: MIT
       const value = clampInt(input?.value, 0, 100, 50);
       input.value = value;
       const probText = row.querySelector('.prob-display');
-      if (probText) probText.textContent = formatHeadsTails(value);
+      if (probText) probText.innerHTML = `${formatHeadsTails(value)}`;
       const meanText = row.querySelector('.mean-display');
-      if (meanText) meanText.textContent = `Среднее: ${(coinCountValue * (value / 100)).toFixed(2)}`;
+      if (meanText) {
+        meanText.innerHTML = `| Среднее: <span class="value-strong">${(coinCountValue * (value / 100)).toFixed(2)}</span>`;
+      }
       const color = colors[idx % colors.length];
       values.push({ p: value / 100, label: `${value}%`, color });
     });
@@ -570,7 +581,7 @@ License: MIT
       const currentCoinCount = dataset.probs.length - 1;
       const clampedIndex = Math.min(displayIndex, currentCoinCount);
       const prob = dataset.probs[clampedIndex] || 0;
-      info.textContent = `Орлы/решки: ${clampedIndex}/${currentCoinCount - clampedIndex}, вероятность ${formatProbability(prob)}`;
+      info.innerHTML = `| Значение: <span class="value-strong">${clampedIndex}</span>/<span class="value-strong">${currentCoinCount - clampedIndex}</span> | Вероятность: <span class="value-strong">${formatProbability(prob)}</span>`;
     });
   }
 
