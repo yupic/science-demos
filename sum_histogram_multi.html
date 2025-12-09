@@ -316,7 +316,8 @@ License: MIT
       levels.forEach((k) => {
         const positions = [mean - sigma * k, mean + sigma * k];
         positions.forEach((actualPos) => {
-          const pos = actualPos - 0.5;
+          const posShift = actualPos < mean ? -0.5 : (actualPos > mean ? 0.5 : 0);
+          const pos = actualPos + posShift;
           const x = marginLeft + ((pos - xMinEdge) / xRange) * innerWidth;
           if (x < marginLeft || x > marginLeft + innerWidth) return;
           ctx.strokeStyle = lineColor;
