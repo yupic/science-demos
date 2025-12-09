@@ -1,0 +1,320 @@
+:root {
+  --bg: #f5f5f5;
+  --fg: #222;
+  --accent: #2c7be5;
+  --accent2: #e67e22;
+  --muted: #666;
+  --card: #fff;
+  --border: #ddd;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.container {
+  margin: 0 auto;
+  padding: 0 16px;
+  width: 100%;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+p.desc {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+button {
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+button:hover {
+  background: #f0f4ff;
+}
+
+button:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0.05);
+}
+
+select,
+input[type="number"] {
+  padding: 6px 8px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.mut-label,
+.slider-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.mut-label input,
+.mut-label select {
+  padding: 6px 8px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.mut-label input[type="number"] {
+  width: 90px;
+}
+
+.slider-label input[type="range"] {
+  width: 200px;
+}
+
+.slider-value {
+  min-width: 52px;
+  display: inline-block;
+  text-align: left;
+  color: var(--muted);
+}
+
+.stats {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.stats span.value {
+  color: var(--fg);
+  font-weight: 600;
+  display: inline-block;
+  text-align: right;
+}
+
+.canvas-frame {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.canvas-frame canvas {
+  width: 100%;
+  height: auto;
+}
+
+canvas {
+  display: block;
+  background: #fff;
+  max-width: 100%;
+}
+
+.note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.value-strong {
+  font-weight: 700;
+}
+
+.probability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+
+.prob-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.probability-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.probability-row span {
+  white-space: nowrap;
+}
+
+.probability-row input[type="range"] {
+  width: 200px;
+}
+
+.probability-row .color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.charts-layout {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.charts-column {
+  flex: 0 0 auto;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.allele-card {
+  width: 248px;
+  flex-shrink: 0;
+}
+
+.allele-canvas {
+  display: block;
+}
+
+.allele-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.allele-info {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--fg);
+  line-height: 1.4;
+}
+
+.allele-info-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.allele-info-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+
+.allele-info-row:last-child {
+  margin-bottom: 0;
+}
+
+.genome-card {
+  margin-top: 12px;
+}
+
+.genome-list {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+  white-space: pre;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--fg);
+}
+
+.genome-letter {
+  color: #00f;
+}
+
+.genome-letter-A {
+  color: #fff;
+}
+
+.genome-letter-C {
+  color: #000;
+}
+
+.genome-letter-G {
+  color: #ff0;
+}
+
+.genome-letter-T {
+  color: #00f;
+}
+
+.footer {
+  margin: 10px 0;
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+}
+
+.footer a {
+  color: #999;
+}
+
+@media (max-width: 600px) {
+  h1 {
+    font-size: 20px;
+  }
+
+  .slider-label input[type="range"] {
+    width: 150px;
+  }
+
+  .probability-row input {
+    width: 100px;
+  }
+}
