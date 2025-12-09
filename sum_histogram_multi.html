@@ -324,10 +324,11 @@ License: MIT
           ctx.stroke();
           ctx.setLineDash([]);
           ctx.fillStyle = '#222';
-          ctx.font = '10px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+          ctx.font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
           ctx.fillText(`${k}σ`, x, marginTop + 2);
+          ctx.fillText(pos.toFixed(2), x, marginTop + 20);
         });
       });
       const meanX = marginLeft + ((mean - xMinEdge) / xRange) * innerWidth;
@@ -415,7 +416,10 @@ License: MIT
       const inputs = row.querySelectorAll('input');
       const count = clampInt(inputs[0]?.value, 1, 300, 100);
       const minValue = clampInt(inputs[1]?.value, -50, 50, 0);
-      const maxValue = clampInt(inputs[2]?.value, -50, 50, 1);
+      let maxValue = clampInt(inputs[2]?.value, -50, 50, 1);
+      if (maxValue < minValue) {
+        maxValue = minValue;
+      }
       inputs[0].value = count;
       inputs[1].value = minValue;
       inputs[2].value = maxValue;
@@ -433,7 +437,7 @@ License: MIT
         if (stats) stats.textContent = '';
         return;
       }
-      stats.innerHTML = `| Среднее: <span class="value-strong">${data.mean.toFixed(2)}</span> | SD: <span class="value-strong">${data.sigma.toFixed(2)}</span>`;
+      stats.innerHTML = `| Среднее: <span class="value-strong">${data.mean.toFixed(2)}</span> | σ: <span class="value-strong">${data.sigma.toFixed(2)}</span>`;
     });
   }
 
