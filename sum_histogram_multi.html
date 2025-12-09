@@ -1,0 +1,492 @@
+<!--
+Interactive science demo.
+Part of the "science-demos" project.
+
+GitHub: https://github.com/yupic/science-demos
+YouTube: https://www.youtube.com/@autism-ru
+Telegram: https://t.me/autism_science
+License: MIT
+-->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Суммы случайных чисел</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="container">
+  <h1>Гистограмма суммы случайных чисел</h1>
+  <p class="desc">Исследуйте распределения суммы N случайных целых чисел в диапазоне от <code>min</code> до <code>max</code> с равной вероятностью. Меняйте параметры и сравнивайте несколько гистограмм.</p>
+  <div class="controls">
+    <label class="mut-label">Масштаб:
+      <select id="scaleMode">
+        <option value="full" selected>Полный</option>
+        <option value="auto">Авто</option>
+      </select>
+    </label>
+    <label class="mut-label">Добавить/удалить гистограмму:</label>
+    <div class="prob-actions">
+      <button id="addSetBtn">➕</button>
+      <button id="removeSetBtn" disabled>❌</button>
+    </div>
+  </div>
+  <div class="probability-section">
+    <div class="probability-list" id="setList"></div>
+  </div>
+  <div class="canvas-frame">
+    <canvas id="histCanvas"></canvas>
+  </div>
+</div>
+<div class="footer">
+  © autism_science • MIT License •
+  <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener">GitHub</a> •
+  <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener">YouTube</a> •
+  <a href="https://t.me/autism_science" target="_blank" rel="noopener">Telegram</a>
+</div>
+<script>
+  const canvas = document.getElementById('histCanvas');
+  const ctx = canvas.getContext('2d');
+  const scaleModeSelect = document.getElementById('scaleMode');
+  const addSetBtn = document.getElementById('addSetBtn');
+  const removeSetBtn = document.getElementById('removeSetBtn');
+  const setList = document.getElementById('setList');
+
+  const colors = [
+    'rgba(44, 123, 229, 0.5)',
+    'rgba(227, 52, 47, 0.5)',
+    'rgba(52, 168, 83, 0.5)',
+    'rgba(255, 193, 7, 0.5)',
+    'rgba(156, 39, 176, 0.5)',
+    'rgba(0, 188, 212, 0.5)',
+    'rgba(255, 87, 34, 0.5)'
+  ];
+
+  let datasets = [];
+  let scaleMode = 'full';
+  let currentRange = { min: 0, max: 100 };
+
+  function clampInt(value, min, max, fallback) {
+    const n = parseInt(value, 10);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(Math.max(n, min), max);
+  }
+
+  function uniformSumPmf(count, minValue, maxValue) {
+    if (count <= 0) {
+      return { probs: [1], offset: 0 };
+    }
+    const low = Math.min(minValue, maxValue);
+    const high = Math.max(minValue, maxValue);
+    const width = high - low + 1;
+    const baseProb = 1 / width;
+    let probs = new Float64Array(width).fill(baseProb);
+    let offset = low;
+
+    for (let i = 1; i < count; i++) {
+      const next = new Float64Array(probs.length + width - 1);
+      for (let a = 0; a < probs.length; a++) {
+        const p = probs[a];
+        if (p === 0) continue;
+        for (let b = 0; b < width; b++) {
+          next[a + b] += p * baseProb;
+        }
+      }
+      probs = next;
+      offset += low;
+    }
+
+    return { probs: Array.from(probs), offset };
+  }
+
+  function generateXTicks(domain, widthPx, minLabelGapPx = 34) {
+    const width = Math.max(0, widthPx);
+    const maxLabels = Math.floor(width / minLabelGapPx);
+    if (maxLabels < 2) return [];
+
+    const range = Math.abs(domain.max - domain.min);
+    if (range === 0) return [domain.min];
+
+    const targetLabels = Math.min(maxLabels, 31);
+    let rawStep = range / (targetLabels - 1);
+    const m = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const x = rawStep / m;
+    let niceBase;
+    if (x <= 1) niceBase = 1;
+    else if (x <= 2) niceBase = 2;
+    else if (x <= 5) niceBase = 5;
+    else niceBase = 10;
+    let step = Math.max(1, niceBase * m);
+
+    const buildTicks = () => {
+      const ticks = [];
+      const start = Math.ceil(domain.min / step) * step;
+      for (let v = start; v <= domain.max + step * 0.001; v += step) {
+        const rounded = Number((Math.round(v / step) * step).toFixed(10));
+        ticks.push(rounded);
+      }
+      return ticks;
+    };
+
+    let ticks = buildTicks();
+    if (ticks.length > maxLabels) {
+      step *= 2;
+      ticks = buildTicks();
+    }
+    return ticks;
+  }
+
+  function generateYTicks(maxProb) {
+    const maxValue = maxProb > 0 ? maxProb : 1;
+    const ticks = Array.from({ length: 5 }, (_, i) => (maxValue * i) / 4);
+    return { ticks, maxValue };
+  }
+
+  function calculateRange(simulatedDatasets, fallbackRange) {
+    if (!simulatedDatasets || simulatedDatasets.length === 0) return fallbackRange;
+
+    if (scaleMode !== 'auto') {
+      let minOverall = Infinity;
+      let maxOverall = -Infinity;
+      simulatedDatasets.forEach(({ theoreticalMin, theoreticalMax }) => {
+        minOverall = Math.min(minOverall, theoreticalMin);
+        maxOverall = Math.max(maxOverall, theoreticalMax);
+      });
+      if (!Number.isFinite(minOverall) || !Number.isFinite(maxOverall)) return fallbackRange;
+      return { min: minOverall, max: maxOverall };
+    }
+
+    let minObserved = Infinity;
+    let maxObserved = -Infinity;
+    simulatedDatasets.forEach((dataset) => {
+      const { mean, sigma, theoreticalMin, theoreticalMax, probs, offset } = dataset;
+      if (Number.isFinite(mean) && Number.isFinite(sigma)) {
+        const spread = Math.max(1, sigma * 4);
+        minObserved = Math.min(minObserved, Math.max(theoreticalMin, Math.floor(mean - spread)));
+        maxObserved = Math.max(maxObserved, Math.min(theoreticalMax, Math.ceil(mean + spread)));
+        return;
+      }
+      if (!probs) return;
+      for (let i = 0; i < probs.length; i++) {
+        if (probs[i] > 0) {
+          const value = offset + i;
+          minObserved = Math.min(minObserved, value);
+          maxObserved = Math.max(maxObserved, value);
+        }
+      }
+    });
+
+    if (!Number.isFinite(minObserved) || !Number.isFinite(maxObserved)) return fallbackRange;
+    if (minObserved === maxObserved) {
+      return { min: minObserved - 1, max: maxObserved + 1 };
+    }
+    return { min: minObserved, max: maxObserved };
+  }
+
+  function draw(simulatedDatasets) {
+    const fallbackRange = simulatedDatasets?.[0]
+      ? { min: simulatedDatasets[0].theoreticalMin, max: simulatedDatasets[0].theoreticalMax }
+      : { min: 0, max: 100 };
+
+    const { min: xMin, max: xMax } = calculateRange(simulatedDatasets, fallbackRange);
+    currentRange = { min: xMin, max: xMax };
+    const xMinEdge = xMin - 0.5;
+    const xMaxEdge = xMax + 0.5;
+    const xRange = xMaxEdge - xMinEdge || 1;
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
+    const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.6, 520));
+    canvas.style.height = `${targetHeight}px`;
+    canvas.width = Math.floor(displayWidth * dpr);
+    canvas.height = Math.floor(targetHeight * dpr);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+    const marginLeft = 64;
+    const marginRight = 16;
+    const marginBottom = 40;
+    const marginTop = 18;
+    const innerWidth = width - marginLeft - marginRight;
+    const innerHeight = height - marginTop - marginBottom;
+
+    ctx.fillStyle = '#f8f9fc';
+    ctx.fillRect(marginLeft, marginTop, innerWidth, innerHeight);
+
+    if (!simulatedDatasets || simulatedDatasets.length === 0) {
+      drawAxesOnly({ xMin, xMax, marginLeft, marginTop, innerWidth, innerHeight, width, height });
+      return;
+    }
+
+    let globalMaxProb = 0;
+    simulatedDatasets.forEach(({ probs }) => {
+      const maxProb = Math.max(...probs, 0);
+      globalMaxProb = Math.max(globalMaxProb, maxProb);
+    });
+
+    const { ticks: yTicks, maxValue: yMax } = generateYTicks(globalMaxProb);
+    const scaleY = yMax > 0 ? innerHeight / yMax : 0;
+
+    simulatedDatasets.forEach(({ probs, offset, color }) => {
+      ctx.fillStyle = color;
+      const barWidth = innerWidth / xRange;
+      for (let i = 0; i < probs.length; i++) {
+        const prob = probs[i];
+        if (prob === 0) continue;
+        const xValue = offset + i;
+        const xLeft = marginLeft + ((xValue - 0.5 - xMinEdge) / xRange) * innerWidth;
+        const h = prob * scaleY;
+        if (h < 1) continue;
+        const y = marginTop + innerHeight - h;
+        if (xLeft + barWidth < marginLeft || xLeft > width - marginRight) continue;
+        const drawWidth = Math.max(1, barWidth * 0.9);
+        const x = xLeft + (barWidth - drawWidth) / 2;
+        ctx.fillRect(x, y, drawWidth, h);
+      }
+    });
+
+    drawSigmaLines(simulatedDatasets, { xMinEdge, xRange, marginLeft, innerWidth, marginTop, innerHeight });
+    drawAxesOnly({ xMin, xMax, marginLeft, marginTop, innerWidth, innerHeight, width, height, yTicks, yMax });
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  function drawAxesOnly({ xMin, xMax, marginLeft, marginTop, innerWidth, innerHeight, width, height, yTicks = [0, 0.25, 0.5, 0.75, 1], yMax = 1 }) {
+    const xMinEdge = xMin - 0.5;
+    const xMaxEdge = xMax + 0.5;
+    const xRange = xMaxEdge - xMinEdge || 1;
+    const marginRight = 16;
+    const marginBottom = 40;
+
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(marginLeft, marginTop + innerHeight);
+    ctx.lineTo(width - marginRight, marginTop + innerHeight);
+    ctx.stroke();
+
+    ctx.fillStyle = '#444';
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const labelValues = generateXTicks({ min: xMin, max: xMax }, innerWidth);
+    const stepForFormat = labelValues.length >= 2 ? Math.abs(labelValues[1] - labelValues[0]) : 1;
+    const decimals = stepForFormat >= 1 ? 0 : Math.max(0, Math.min(6, Math.ceil(-Math.log10(stepForFormat))));
+    const formatTick = (value) => {
+      if (decimals === 0) return Math.round(value).toString();
+      return Number(value.toFixed(decimals)).toString();
+    };
+
+    for (const value of labelValues) {
+      const x = marginLeft + ((value - xMinEdge) / xRange) * innerWidth;
+      const label = formatTick(value);
+      ctx.fillText(label, x, marginTop + innerHeight + 6);
+    }
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (const prob of yTicks) {
+      const y = marginTop + innerHeight - (prob / yMax) * innerHeight;
+      ctx.fillText(`${(prob * 100).toFixed(2)}%`, marginLeft - 8, y);
+    }
+
+    ctx.save();
+    const yLabelX = Math.max(4, marginLeft - 74);
+    ctx.translate(yLabelX, marginTop + innerHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Вероятность', 0, 0);
+    ctx.restore();
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  function drawSigmaLines(simulatedDatasets, { xMinEdge, xRange, marginLeft, innerWidth, marginTop, innerHeight }) {
+    simulatedDatasets.forEach(({ mean, sigma, color }) => {
+      if (!Number.isFinite(mean) || !Number.isFinite(sigma)) return;
+      const lineColor = color.replace('0.5', '0.9');
+      const levels = [1, 2, 3];
+      ctx.lineWidth = 1;
+      levels.forEach((k) => {
+        const positions = [mean - sigma * k, mean + sigma * k];
+        positions.forEach((pos) => {
+          const x = marginLeft + ((pos - xMinEdge) / xRange) * innerWidth;
+          if (x < marginLeft || x > marginLeft + innerWidth) return;
+          ctx.strokeStyle = lineColor;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x, marginTop);
+          ctx.lineTo(x, marginTop + innerHeight);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#222';
+          ctx.font = '10px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(`${k}σ`, x, marginTop + 2);
+        });
+      });
+      const meanX = marginLeft + ((mean - xMinEdge) / xRange) * innerWidth;
+      if (meanX >= marginLeft && meanX <= marginLeft + innerWidth) {
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([2, 6]);
+        ctx.beginPath();
+        ctx.moveTo(meanX, marginTop);
+        ctx.lineTo(meanX, marginTop + innerHeight);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    });
+  }
+
+  function createSetRow(defaults = { count: 100, min: 0, max: 1 }) {
+    const row = document.createElement('div');
+    row.className = 'probability-row';
+    const colorDot = document.createElement('div');
+    colorDot.className = 'color-dot';
+    const color = colors[setList.children.length % colors.length];
+    colorDot.style.background = color;
+
+    const countLabel = document.createElement('label');
+    countLabel.className = 'mut-label';
+    countLabel.textContent = 'N:';
+    const countInput = document.createElement('input');
+    countInput.type = 'number';
+    countInput.min = '1';
+    countInput.max = '300';
+    countInput.value = clampInt(defaults.count, 1, 300, 100);
+    countInput.addEventListener('input', handleCreate);
+    countLabel.appendChild(countInput);
+
+    const minLabel = document.createElement('label');
+    minLabel.className = 'mut-label';
+    minLabel.textContent = 'Мин:';
+    const minInput = document.createElement('input');
+    minInput.type = 'number';
+    minInput.min = '-50';
+    minInput.max = '50';
+    minInput.value = clampInt(defaults.min, -50, 50, 0);
+    minInput.addEventListener('input', handleCreate);
+    minLabel.appendChild(minInput);
+
+    const maxLabel = document.createElement('label');
+    maxLabel.className = 'mut-label';
+    maxLabel.textContent = 'Макс:';
+    const maxInput = document.createElement('input');
+    maxInput.type = 'number';
+    maxInput.min = '-50';
+    maxInput.max = '50';
+    maxInput.value = clampInt(defaults.max, -50, 50, 1);
+    maxInput.addEventListener('input', handleCreate);
+    maxLabel.appendChild(maxInput);
+
+    const stats = document.createElement('span');
+    stats.className = 'prob-display';
+    stats.style.fontSize = '12px';
+    stats.style.color = '#444';
+
+    row.appendChild(colorDot);
+    row.appendChild(countLabel);
+    row.appendChild(minLabel);
+    row.appendChild(maxLabel);
+    row.appendChild(stats);
+    setList.appendChild(row);
+  }
+
+  function refreshColorDots() {
+    Array.from(setList.children).forEach((row, idx) => {
+      const dot = row.querySelector('.color-dot');
+      dot.style.background = colors[idx % colors.length];
+    });
+  }
+
+  function updateRemoveButtonState() {
+    removeSetBtn.disabled = setList.children.length <= 1;
+  }
+
+  function collectSets() {
+    const sets = [];
+    Array.from(setList.children).forEach((row, idx) => {
+      const inputs = row.querySelectorAll('input');
+      const count = clampInt(inputs[0]?.value, 1, 300, 100);
+      const minValue = clampInt(inputs[1]?.value, -50, 50, 0);
+      const maxValue = clampInt(inputs[2]?.value, -50, 50, 1);
+      inputs[0].value = count;
+      inputs[1].value = minValue;
+      inputs[2].value = maxValue;
+      const color = colors[idx % colors.length];
+      sets.push({ count, min: minValue, max: maxValue, color, row });
+    });
+    return sets;
+  }
+
+  function updateStatsDisplay(simulatedDatasets) {
+    Array.from(setList.children).forEach((row, idx) => {
+      const stats = row.querySelector('.prob-display');
+      const data = simulatedDatasets?.[idx];
+      if (!stats || !data) {
+        if (stats) stats.textContent = '';
+        return;
+      }
+      stats.innerHTML = `| Среднее: <span class="value-strong">${data.mean.toFixed(2)}</span> | SD: <span class="value-strong">${data.sigma.toFixed(2)}</span>`;
+    });
+  }
+
+  function handleCreate() {
+    const sets = collectSets();
+    if (sets.length === 0) {
+      createSetRow();
+      return;
+    }
+
+    const simulatedDatasets = sets.map(({ count, min, max, color }) => {
+      const { probs, offset } = uniformSumPmf(count, min, max);
+      const average = (min + max) / 2;
+      const varianceSingle = ((Math.pow(max - min + 1, 2) - 1) / 12);
+      const variance = varianceSingle * count;
+      const sigma = Math.sqrt(variance);
+      const mean = average * count;
+      const theoreticalMin = count * Math.min(min, max);
+      const theoreticalMax = count * Math.max(min, max);
+      return { probs, offset, color, mean, sigma, theoreticalMin, theoreticalMax };
+    });
+
+    datasets = simulatedDatasets;
+    updateStatsDisplay(simulatedDatasets);
+    draw(simulatedDatasets);
+  }
+
+  addSetBtn.addEventListener('click', () => {
+    createSetRow();
+    refreshColorDots();
+    updateRemoveButtonState();
+    handleCreate();
+  });
+
+  removeSetBtn.addEventListener('click', () => {
+    const rows = setList.children;
+    if (rows.length <= 1) return;
+    setList.removeChild(rows[rows.length - 1]);
+    refreshColorDots();
+    updateRemoveButtonState();
+    handleCreate();
+  });
+
+  scaleModeSelect.addEventListener('change', (e) => {
+    scaleMode = e.target.value;
+    draw(datasets);
+  });
+
+  window.addEventListener('resize', () => draw(datasets));
+
+  createSetRow();
+  updateRemoveButtonState();
+  handleCreate();
+</script>
+</body>
+</html>
