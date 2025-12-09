@@ -18,10 +18,10 @@ License: MIT
 <body>
 <div class="container">
   <h1>Симулятор эволюции длины шеи жирафа</h1>
-  <details id="instructionsDetails" class="card instruction-card">
-    <summary id="instructionsSummary" class="instruction-summary">
-      <span id="instructionsSummaryIcon" aria-hidden="true">▶</span>
-      <span id="instructionsSummaryText">Развернуть описание</span>
+  <details class="card instruction-card">
+    <summary class="instruction-summary">
+      <span class="summary-label-closed">Развернуть описание</span>
+      <span class="summary-label-open">Свернуть описание</span>
     </summary>
     <div style="padding:0 12px 12px 12px;">
       <div class="card-title">TL;DR — как смотреть на эту демку</div>
@@ -273,14 +273,14 @@ License: MIT
     <div class="charts-column">
       <div class="card">
         <div class="card-title">Распределение длины шеи в текущем поколении</div>
-        <div class="canvas-frame">
+        <div class="canvas-frame intrinsic-size">
           <canvas id="histCanvas" width="640" height="200"></canvas>
         </div>
       </div>
 
       <div class="card">
         <div class="card-title">Динамика средней длины шеи</div>
-        <div class="canvas-frame">
+        <div class="canvas-frame intrinsic-size">
           <canvas id="timeCanvas" width="640" height="200"></canvas>
         </div>
         <div class="note">
@@ -296,7 +296,7 @@ License: MIT
 
     <div class="card allele-card">
       <div class="card-title">Распределение аллелей</div>
-      <div class="canvas-frame">
+      <div class="canvas-frame intrinsic-size">
         <canvas id="alleleCanvas" class="allele-canvas" width="220" height="520" tabindex="0" aria-label="Распределение аллелей"></canvas>
       </div>
       <div class="note">Каждая строка — позиция генома; цвета показывают доли A/C/G/T в популяции. Кликните на строку, чтобы увидеть подробности.</div>
@@ -848,33 +848,11 @@ License: MIT
   const sigmaValue = document.getElementById('sigmaValue');
   const alleleInfo = document.getElementById('alleleInfo');
   const topGenomes = document.getElementById('topGenomes');
-  const instructionsDetails = document.getElementById('instructionsDetails');
-  const instructionsSummaryIcon = document.getElementById('instructionsSummaryIcon');
-  const instructionsSummaryText = document.getElementById('instructionsSummaryText');
-
   let alleleInfoReady = false;
   let alleleInfoTitle = null;
   let alleleInfoPlaceholder = null;
   let alleleInfoContent = null;
   const alleleInfoValues = {};
-
-  const updateInstructionSummary = (isOpen) => {
-    if (!instructionsSummaryIcon || !instructionsSummaryText) return;
-    if (isOpen) {
-      instructionsSummaryIcon.textContent = '▼';
-      instructionsSummaryText.textContent = 'Свернуть описание';
-    } else {
-      instructionsSummaryIcon.textContent = '▶';
-      instructionsSummaryText.textContent = 'Развернуть описание';
-    }
-  };
-
-  if (instructionsDetails) {
-    updateInstructionSummary(instructionsDetails.open);
-    instructionsDetails.addEventListener('toggle', () => {
-      updateInstructionSummary(instructionsDetails.open);
-    });
-  }
 
   const clampAllelePos = (pos) => Math.min(Math.max(pos, 0), GENOME_LENGTH - 1);
 

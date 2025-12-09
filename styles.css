@@ -134,10 +134,59 @@ input[type="number"] {
   height: auto;
 }
 
+.canvas-frame.intrinsic-size {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.canvas-frame.intrinsic-size canvas {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+}
+
 canvas {
   display: block;
   background: #fff;
   max-width: 100%;
+}
+
+.instruction-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.instruction-summary::marker,
+.instruction-summary::-webkit-details-marker {
+  display: none;
+}
+
+.instruction-summary::before {
+  content: '▶';
+  font-size: 13px;
+  transition: transform 0.2s ease;
+  color: var(--muted);
+}
+
+details[open] .instruction-summary::before {
+  content: '▼';
+  color: var(--muted);
+}
+
+.instruction-summary .summary-label-open {
+  display: none;
+}
+
+details[open] .instruction-summary .summary-label-open {
+  display: inline;
+}
+
+details[open] .instruction-summary .summary-label-closed {
+  display: none;
 }
 
 .note {
