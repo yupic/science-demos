@@ -1,0 +1,617 @@
+<!--
+Interactive science demo.
+Part of the "science-demos" project.
+
+GitHub: https://github.com/yupic/science-demos
+YouTube: https://www.youtube.com/@autism-ru
+Telegram: https://t.me/autism_science
+License: MIT
+-->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Сумма случайных чисел (взвешенные)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .triple-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.85fr);
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    @media (max-width: 900px) {
+      .triple-layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .triple-card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+
+    .triple-card h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .triple-card p {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .triples-wrapper {
+      max-height: 420px;
+      overflow-y: auto;
+      margin-top: 6px;
+    }
+
+    table.triples-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    table.triples-table thead th {
+      position: sticky;
+      top: 0;
+      background: var(--card);
+      z-index: 1;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table.triples-table th,
+    table.triples-table td {
+      padding: 4px 4px;
+      text-align: center;
+      border-bottom: 1px solid rgba(0,0,0,0.02);
+      white-space: nowrap;
+    }
+
+    table.triples-table tbody tr:nth-child(2n+1) {
+      background: rgba(0,0,0,0.01);
+    }
+
+    .value-input {
+      width: 66px;
+      padding: 3px 4px;
+      font-size: 13px;
+    }
+
+    .prob-cell {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 160px;
+    }
+
+    .prob-slider {
+      flex: 1;
+    }
+
+    .prob-input {
+      width: 46px;
+      padding: 3px 4px;
+      font-size: 12px;
+    }
+
+    .row-info {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .sum-stats {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .sum-stats .value-strong {
+      font-weight: 600;
+      color: var(--fg);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>ЦПТ: сумма случайных чисел с произвольными парами</h1>
+  <p class="desc">
+    В каждой строке задаётся случайная величина: с вероятностью <span class="value-strong">p</span> берётся <span class="value-strong">a</span>,
+    а с вероятностью <span class="value-strong">1−p</span> — <span class="value-strong">b</span>. Внизу показана гистограмма распределения суммы всех
+    величин. Попробуйте менять параметры, чтобы увидеть, как работает ЦПТ.
+  </p>
+
+  <div class="controls">
+    <label class="mut-label">N (1–100): <input id="countInput" type="number" min="1" max="100" value="30"></label>
+    <label class="mut-label">min: <input id="minInput" type="number" value="-3"></label>
+    <label class="mut-label">max: <input id="maxInput" type="number" value="3"></label>
+    <button id="regenBtn">Перегенерировать все значения</button>
+  </div>
+
+  <div class="triple-layout">
+    <div class="triple-card">
+      <h2>Параметры случайных величин</h2>
+      <p>Числа — целые в диапазоне <code>[min; max]</code>. Вероятность <strong>a</strong> — от 1% до 99%. Можно редактировать вручную.</p>
+      <div class="triples-wrapper">
+        <table class="triples-table">
+          <thead>
+            <tr>
+              <th>a</th>
+              <th>b</th>
+              <th>P(a), %</th>
+              <th>Информация</th>
+            </tr>
+          </thead>
+          <tbody id="triplesBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <div class="canvas-frame">
+        <canvas id="sumCanvas"></canvas>
+      </div>
+      <div class="sum-stats" id="sumStats"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  © autism_science • MIT License •
+  <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener">GitHub</a> •
+  <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener">YouTube</a> •
+  <a href="https://t.me/autism_science" target="_blank" rel="noopener">Telegram</a>
+</div>
+
+<script>
+  const canvas = document.getElementById('sumCanvas');
+  const ctx = canvas.getContext('2d');
+  const regenBtn = document.getElementById('regenBtn');
+  const triplesBody = document.getElementById('triplesBody');
+  const sumStats = document.getElementById('sumStats');
+  const countInput = document.getElementById('countInput');
+  const minInput = document.getElementById('minInput');
+  const maxInput = document.getElementById('maxInput');
+
+  let currentDataset = null;
+  let cachedMin = -3;
+  let cachedMax = 3;
+
+  function clampInt(value, min, max, fallback) {
+    const n = parseInt(value, 10);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(Math.max(n, min), max);
+  }
+
+  function parseIntSafe(value, fallback = 0) {
+    const n = parseInt(value, 10);
+    if (!Number.isFinite(n)) return fallback;
+    return n;
+  }
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function generateXTicks(domain, widthPx, minLabelGapPx = 34) {
+    const width = Math.max(0, widthPx);
+    const maxLabels = Math.floor(width / minLabelGapPx);
+    if (maxLabels < 2) return [];
+
+    const range = Math.abs(domain.max - domain.min);
+    if (range === 0) return [domain.min];
+
+    const targetLabels = Math.min(maxLabels, 31);
+    let rawStep = range / (targetLabels - 1);
+    const m = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const x = rawStep / m;
+    let niceBase;
+    if (x <= 1) niceBase = 1;
+    else if (x <= 2) niceBase = 2;
+    else if (x <= 5) niceBase = 5;
+    else niceBase = 10;
+    let step = Math.max(1, niceBase * m);
+
+    const buildTicks = () => {
+      const ticks = [];
+      const start = Math.ceil(domain.min / step) * step;
+      for (let v = start; v <= domain.max + step * 0.001; v += step) {
+        const rounded = Number((Math.round(v / step) * step).toFixed(10));
+        ticks.push(rounded);
+      }
+      return ticks;
+    };
+
+    let ticks = buildTicks();
+    if (ticks.length > maxLabels) {
+      step *= 2;
+      ticks = buildTicks();
+    }
+    return ticks;
+  }
+
+  function generateYTicks(maxProb) {
+    const maxValue = maxProb > 0 ? maxProb : 1;
+    const ticks = Array.from({ length: 5 }, (_, i) => (maxValue * i) / 4);
+    return { ticks, maxValue };
+  }
+
+  function drawAxesOnly(xMin, xMax, marginLeft, marginTop, innerWidth, innerHeight, width, height, yTicks = [0, 0.25, 0.5, 0.75, 1], yMax = 1) {
+    const xMinEdge = xMin - 0.5;
+    const xMaxEdge = xMax + 0.5;
+    const xRange = xMaxEdge - xMinEdge || 1;
+    const marginRight = 16;
+    const marginBottom = 40;
+
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(marginLeft, marginTop + innerHeight);
+    ctx.lineTo(width - marginRight, marginTop + innerHeight);
+    ctx.stroke();
+
+    ctx.fillStyle = '#444';
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    const labelValues = generateXTicks({ min: xMin, max: xMax }, innerWidth);
+    const stepForFormat = labelValues.length >= 2 ? Math.abs(labelValues[1] - labelValues[0]) : 1;
+    const decimals = stepForFormat >= 1 ? 0 : Math.max(0, Math.min(6, Math.ceil(-Math.log10(stepForFormat))));
+    const formatTick = (value) => {
+      if (decimals === 0) return Math.round(value).toString();
+      return Number(value.toFixed(decimals)).toString();
+    };
+
+    for (const value of labelValues) {
+      const x = marginLeft + ((value - xMinEdge) / xRange) * innerWidth;
+      const label = formatTick(value);
+      ctx.fillText(label, x, marginTop + innerHeight + 6);
+    }
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (const prob of yTicks) {
+      const y = marginTop + innerHeight - (prob / yMax) * innerHeight;
+      ctx.fillText(`${(prob * 100).toFixed(2)}%`, marginLeft - 8, y);
+    }
+
+    ctx.save();
+    const yLabelX = Math.max(4, marginLeft - 74);
+    ctx.translate(yLabelX, marginTop + innerHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Вероятность', 0, 0);
+    ctx.restore();
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  function computeDistribution(triples) {
+    if (!triples || triples.length === 0) return null;
+
+    let dist = new Map();
+    dist.set(0, 1);
+
+    for (const { a, b, p } of triples) {
+      const q = 1 - p;
+      const next = new Map();
+      for (const [sum, prob] of dist.entries()) {
+        const s1 = sum + a;
+        const s2 = sum + b;
+        next.set(s1, (next.get(s1) || 0) + prob * p);
+        next.set(s2, (next.get(s2) || 0) + prob * q);
+      }
+      dist = next;
+    }
+
+    let total = 0;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (const [x, prob] of dist.entries()) {
+      total += prob;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || total <= 0) {
+      return null;
+    }
+
+    const length = maxX - minX + 1;
+    const probs = new Array(length).fill(0);
+    for (const [x, prob] of dist.entries()) {
+      const idx = x - minX;
+      if (idx >= 0 && idx < length) {
+        probs[idx] = prob / total;
+      }
+    }
+
+    let mean = 0;
+    let meanSq = 0;
+    for (let i = 0; i < length; i++) {
+      const x = minX + i;
+      const p = probs[i];
+      mean += x * p;
+      meanSq += x * x * p;
+    }
+    const variance = Math.max(0, meanSq - mean * mean);
+    const sd = Math.sqrt(variance);
+
+    return { probs, minX, maxX, mean, sd };
+  }
+
+  function drawHistogram(dataset) {
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
+    const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.6, 520));
+    canvas.style.height = `${targetHeight}px`;
+    canvas.width = Math.floor(displayWidth * dpr);
+    canvas.height = Math.floor(targetHeight * dpr);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+    const marginLeft = 64;
+    const marginRight = 16;
+    const marginBottom = 40;
+    const marginTop = 18;
+    const innerWidth = width - marginLeft - marginRight;
+    const innerHeight = height - marginTop - marginBottom;
+
+    ctx.fillStyle = '#f8f9fc';
+    ctx.fillRect(marginLeft, marginTop, innerWidth, innerHeight);
+
+    if (!dataset) {
+      drawAxesOnly(0, 0, marginLeft, marginTop, innerWidth, innerHeight, width, height);
+      return;
+    }
+
+    const { probs, minX, maxX } = dataset;
+
+    let maxProb = 0;
+    for (const p of probs) {
+      if (p > maxProb) maxProb = p;
+    }
+    const { ticks: yTicks, maxValue: yMax } = generateYTicks(maxProb);
+    const scaleY = yMax > 0 ? innerHeight / yMax : 0;
+
+    const xMinEdge = minX - 0.5;
+    const xMaxEdge = maxX + 0.5;
+    const xRange = xMaxEdge - xMinEdge || 1;
+    const barWidth = innerWidth / xRange;
+
+    ctx.fillStyle = 'rgba(44, 123, 229, 0.45)';
+    for (let i = 0; i < probs.length; i++) {
+      const prob = probs[i];
+      if (prob <= 0) continue;
+      const value = minX + i;
+      const xLeft = marginLeft + ((value - 0.5 - xMinEdge) / xRange) * innerWidth;
+      const h = prob * scaleY;
+      if (h < 1) continue;
+      const y = marginTop + innerHeight - h;
+      if (xLeft + barWidth < marginLeft || xLeft > width - marginRight) continue;
+      const drawWidth = Math.max(1, barWidth * 0.9);
+      const x = xLeft + (barWidth - drawWidth) / 2;
+      ctx.fillRect(x, y, drawWidth, h);
+    }
+
+    drawAxesOnly(minX, maxX, marginLeft, marginTop, innerWidth, innerHeight, width, height, yTicks, yMax);
+  }
+
+  function updateStats(dataset, tripleCount) {
+    if (!dataset) {
+      sumStats.textContent = '';
+      return;
+    }
+    const { mean, sd } = dataset;
+    sumStats.innerHTML =
+      `Слагаемых: <span class="value-strong">${tripleCount}</span>` +
+      ` | Среднее суммы: <span class="value-strong">${mean.toFixed(2)}</span>` +
+      ` | σ: <span class="value-strong">${sd.toFixed(2)}</span>`;
+  }
+
+  function getTriplesFromTable() {
+    const triples = [];
+    Array.from(triplesBody.children).forEach((tr) => {
+      const inputA = tr.querySelector('.value-a');
+      const inputB = tr.querySelector('.value-b');
+      const slider = tr.querySelector('.prob-slider');
+      if (!inputA || !inputB || !slider) return;
+
+      const a = parseIntSafe(inputA.value, 0);
+      const b = parseIntSafe(inputB.value, 0);
+      const p = clampInt(slider.value, 1, 99, 50) / 100;
+
+      triples.push({ a, b, p });
+    });
+    return triples;
+  }
+
+  function updateRowInfo(tr) {
+    const inputA = tr.querySelector('.value-a');
+    const inputB = tr.querySelector('.value-b');
+    const slider = tr.querySelector('.prob-slider');
+    const info = tr.querySelector('.row-info');
+    if (!inputA || !inputB || !slider || !info) return;
+    const a = parseIntSafe(inputA.value, 0);
+    const b = parseIntSafe(inputB.value, 0);
+    const pPercent = clampInt(slider.value, 1, 99, 50);
+    const qPercent = 100 - pPercent;
+    const mean = a * (pPercent / 100) + b * (qPercent / 100);
+    info.textContent = `P(b) = ${qPercent}% | E = ${mean.toFixed(2)}`;
+  }
+
+  function updateDistribution() {
+    const triples = getTriplesFromTable();
+    const dataset = computeDistribution(triples);
+    currentDataset = dataset;
+    drawHistogram(dataset);
+    updateStats(dataset, triples.length);
+    Array.from(triplesBody.children).forEach(updateRowInfo);
+  }
+
+  function createTripleRow() {
+    const tr = document.createElement('tr');
+
+    const tdA = document.createElement('td');
+    const inputA = document.createElement('input');
+    inputA.type = 'number';
+    inputA.className = 'value-input value-a';
+    inputA.step = '1';
+    tdA.appendChild(inputA);
+    tr.appendChild(tdA);
+
+    const tdB = document.createElement('td');
+    const inputB = document.createElement('input');
+    inputB.type = 'number';
+    inputB.className = 'value-input value-b';
+    inputB.step = '1';
+    tdB.appendChild(inputB);
+    tr.appendChild(tdB);
+
+    const tdProb = document.createElement('td');
+    tdProb.className = 'prob-cell';
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '1';
+    slider.max = '99';
+    slider.value = '50';
+    slider.className = 'prob-slider';
+    const number = document.createElement('input');
+    number.type = 'number';
+    number.min = '1';
+    number.max = '99';
+    number.value = '50';
+    number.className = 'prob-input';
+    const percentSpan = document.createElement('span');
+    percentSpan.textContent = '%';
+    tdProb.appendChild(slider);
+    tdProb.appendChild(number);
+    tdProb.appendChild(percentSpan);
+    tr.appendChild(tdProb);
+
+    const tdInfo = document.createElement('td');
+    const info = document.createElement('span');
+    info.className = 'row-info';
+    tdInfo.appendChild(info);
+    tr.appendChild(tdInfo);
+
+    const onValueChange = () => {
+      updateRowInfo(tr);
+      updateDistribution();
+    };
+
+    inputA.addEventListener('input', onValueChange);
+    inputB.addEventListener('input', onValueChange);
+
+    slider.addEventListener('input', () => {
+      number.value = slider.value;
+      onValueChange();
+    });
+
+    number.addEventListener('input', () => {
+      const v = clampInt(number.value, 1, 99, 50);
+      number.value = v;
+      slider.value = v;
+      onValueChange();
+    });
+
+    triplesBody.appendChild(tr);
+    return tr;
+  }
+
+  function randomizeRow(tr, minVal, maxVal) {
+    const inputA = tr.querySelector('.value-a');
+    const inputB = tr.querySelector('.value-b');
+    const slider = tr.querySelector('.prob-slider');
+    const number = tr.querySelector('.prob-input');
+    if (!inputA || !inputB || !slider || !number) return;
+
+    const v1 = randomInt(minVal, maxVal);
+    let v2;
+    do {
+      v2 = randomInt(minVal, maxVal);
+    } while (v2 === v1 && maxVal > minVal);
+
+    const p = randomInt(1, 99);
+    inputA.value = String(v1);
+    inputB.value = String(v2);
+    slider.value = String(p);
+    number.value = String(p);
+    updateRowInfo(tr);
+  }
+
+  function randomizeAll() {
+    const minVal = Math.min(cachedMin, cachedMax);
+    const maxVal = Math.max(cachedMin, cachedMax);
+    Array.from(triplesBody.children).forEach((tr) => randomizeRow(tr, minVal, maxVal));
+  }
+
+  function ensureRowCount(count) {
+    const current = triplesBody.children.length;
+    if (current < count) {
+      for (let i = current; i < count; i++) {
+        createTripleRow();
+      }
+    } else if (current > count) {
+      for (let i = current - 1; i >= count; i--) {
+        triplesBody.removeChild(triplesBody.children[i]);
+      }
+    }
+  }
+
+  function regenAllAndUpdate() {
+    randomizeAll();
+    updateDistribution();
+  }
+
+  regenBtn.addEventListener('click', regenAllAndUpdate);
+
+  countInput.addEventListener('input', () => {
+    const val = clampInt(countInput.value, 1, 100, 30);
+    countInput.value = val;
+    ensureRowCount(val);
+    regenAllAndUpdate();
+  });
+
+  function syncMinMax() {
+    let minVal = parseIntSafe(minInput.value, -3);
+    let maxVal = parseIntSafe(maxInput.value, 3);
+    if (minVal > maxVal) {
+      [minVal, maxVal] = [maxVal, minVal];
+    }
+    cachedMin = minVal;
+    cachedMax = maxVal;
+    minInput.value = minVal;
+    maxInput.value = maxVal;
+    regenAllAndUpdate();
+  }
+
+  minInput.addEventListener('input', syncMinMax);
+  maxInput.addEventListener('input', syncMinMax);
+
+  window.addEventListener('resize', () => {
+    drawHistogram(currentDataset);
+  });
+
+  function init() {
+    ensureRowCount(clampInt(countInput.value, 1, 100, 30));
+    syncMinMax();
+  }
+
+  init();
+</script>
+</body>
+</html>
