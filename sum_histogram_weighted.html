@@ -79,10 +79,17 @@ License: MIT
       background: rgba(0,0,0,0.01);
     }
 
+    .value-cell {
+      padding: 0;
+    }
+
     .value-input {
-      width: 66px;
-      padding: 3px 4px;
+      width: 100%;
+      padding: 6px 6px;
       font-size: 13px;
+      border-radius: 0;
+      border: 1px solid var(--border);
+      box-sizing: border-box;
     }
 
     .prob-cell {
@@ -132,7 +139,7 @@ License: MIT
     <label class="mut-label">N (1–100): <input id="countInput" type="number" min="1" max="100" value="30"></label>
     <label class="mut-label">min: <input id="minInput" type="number" value="-3"></label>
     <label class="mut-label">max: <input id="maxInput" type="number" value="3"></label>
-    <button id="regenBtn">Перегенерировать все значения</button>
+    <button id="regenBtn">Обновить</button>
   </div>
 
   <div class="triple-layout">
@@ -466,6 +473,7 @@ License: MIT
     const tr = document.createElement('tr');
 
     const tdA = document.createElement('td');
+    tdA.className = 'value-cell';
     const inputA = document.createElement('input');
     inputA.type = 'number';
     inputA.className = 'value-input value-a';
@@ -474,6 +482,7 @@ License: MIT
     tr.appendChild(tdA);
 
     const tdB = document.createElement('td');
+    tdB.className = 'value-cell';
     const inputB = document.createElement('input');
     inputB.type = 'number';
     inputB.className = 'value-input value-b';
@@ -545,9 +554,12 @@ License: MIT
       v2 = randomInt(minVal, maxVal);
     } while (v2 === v1 && maxVal > minVal);
 
+    const aVal = Math.min(v1, v2);
+    const bVal = Math.max(v1, v2);
+
     const p = randomInt(1, 99);
-    inputA.value = String(v1);
-    inputB.value = String(v2);
+    inputA.value = String(aVal);
+    inputB.value = String(bVal);
     slider.value = String(p);
     number.value = String(p);
     updateRowInfo(tr);
