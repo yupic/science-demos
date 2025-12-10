@@ -17,7 +17,7 @@ License: MIT
   <style>
     .triple-layout {
       display: grid;
-      grid-template-columns: minmax(320px, max-content) minmax(0, 1fr);
+      grid-template-columns: auto minmax(0, 1fr);
       gap: 16px;
       align-items: flex-start;
     }
@@ -34,7 +34,6 @@ License: MIT
       padding: 10px 12px;
       border: 1px solid var(--border);
       box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-      width: max-content;
       max-width: 100%;
     }
 
@@ -47,6 +46,7 @@ License: MIT
       margin: 0 0 8px;
       font-size: 13px;
       color: var(--muted);
+      max-width: 380px;
     }
 
     .triples-wrapper {
@@ -108,11 +108,12 @@ License: MIT
       flex: 1;
     }
 
-    input.prob-input {
-      width: 55px;
-      padding: 6px;
-      font-size: 13px;
-      border: none;
+    .prob-labels {
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 84px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
     }
 
     .row-info {
@@ -158,7 +159,7 @@ License: MIT
             <tr>
               <th>a</th>
               <th>b</th>
-              <th>Вероятности a/b %</th> 
+              <th>Вероятности a/b %</th>
               <th>Среднее</th>
             </tr>
           </thead>
@@ -457,13 +458,15 @@ License: MIT
     const inputB = tr.querySelector('.value-b');
     const slider = tr.querySelector('.prob-slider');
     const info = tr.querySelector('.row-info');
-    if (!inputA || !inputB || !slider || !info) return;
+    const labels = tr.querySelector('.prob-labels');
+    if (!inputA || !inputB || !slider || !info || !labels) return;
     const a = parseIntSafe(inputA.value, 0);
     const b = parseIntSafe(inputB.value, 0);
     const pPercent = clampInt(slider.value, 0, 100, 50);
     const qPercent = 100 - pPercent;
     const mean = a * (pPercent / 100) + b * (qPercent / 100);
-    info.textContent = `P(b) = ${qPercent}% | E = ${mean.toFixed(2)}`;
+    labels.textContent = `${pPercent}% / ${qPercent}%`;
+    info.textContent = mean.toFixed(2);
   }
 
   function updateDistribution() {
@@ -504,17 +507,10 @@ License: MIT
     slider.max = '100';
     slider.value = '50';
     slider.className = 'prob-slider';
-    const number = document.createElement('input');
-    number.type = 'number';
-    number.min = '0';
-    number.max = '100';
-    number.value = '50';
-    number.className = 'prob-input';
-    const percentSpan = document.createElement('span');
-    percentSpan.textContent = '%';
+    const probLabels = document.createElement('span');
+    probLabels.className = 'prob-labels';
     tdProb.appendChild(slider);
-    tdProb.appendChild(number);
-    tdProb.appendChild(percentSpan);
+    tdProb.appendChild(probLabels);
     tr.appendChild(tdProb);
 
     const tdInfo = document.createElement('td');
@@ -531,17 +527,7 @@ License: MIT
     inputA.addEventListener('input', onValueChange);
     inputB.addEventListener('input', onValueChange);
 
-    slider.addEventListener('input', () => {
-      number.value = slider.value;
-      onValueChange();
-    });
-
-    number.addEventListener('input', () => {
-      const v = clampInt(number.value, 0, 100, 50);
-      number.value = v;
-      slider.value = v;
-      onValueChange();
-    });
+    slider.addEventListener('input', onValueChange);
 
     triplesBody.appendChild(tr);
     return tr;
@@ -551,8 +537,7 @@ License: MIT
     const inputA = tr.querySelector('.value-a');
     const inputB = tr.querySelector('.value-b');
     const slider = tr.querySelector('.prob-slider');
-    const number = tr.querySelector('.prob-input');
-    if (!inputA || !inputB || !slider || !number) return;
+    if (!inputA || !inputB || !slider) return;
 
     const v1 = randomInt(minVal, maxVal);
     let v2;
@@ -567,7 +552,6 @@ License: MIT
     inputA.value = String(aVal);
     inputB.value = String(bVal);
     slider.value = String(p);
-    number.value = String(p);
     updateRowInfo(tr);
   }
 
