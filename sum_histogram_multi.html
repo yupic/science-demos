@@ -18,7 +18,7 @@ License: MIT
 <body>
 <div class="container">
   <h1>Гистограмма суммы случайных чисел</h1>
-  <p class="desc">Исследуйте распределения суммы N случайных целых чисел в диапазоне от <code>min</code> до <code>max</code> с равной вероятностью. Меняйте параметры и сравнивайте несколько гистограмм.</p>
+  <p class="desc">Построение графиков распределения суммы из <strong>N</strong> случайных <i>целых</i> чисел из диапазона от <strong>min</strong> до <strong>max</strong>.</p>
   <div class="controls">
     <label class="mut-label">Масштаб:
       <select id="scaleMode">
@@ -371,7 +371,7 @@ License: MIT
 
     const minLabel = document.createElement('label');
     minLabel.className = 'mut-label';
-    minLabel.textContent = 'Мин:';
+    minLabel.textContent = 'min:';
     const minInput = document.createElement('input');
     minInput.type = 'number';
     minInput.min = '-50';
@@ -382,7 +382,7 @@ License: MIT
 
     const maxLabel = document.createElement('label');
     maxLabel.className = 'mut-label';
-    maxLabel.textContent = 'Макс:';
+    maxLabel.textContent = 'max:';
     const maxInput = document.createElement('input');
     maxInput.type = 'number';
     maxInput.min = '-50';
@@ -484,11 +484,11 @@ License: MIT
       const clampedValue = Math.max(minValue, Math.min(maxValue, value));
       const relativeIndex = Math.round(clampedValue - dataset.offset);
       const prob = dataset.probs[relativeIndex] || 0;
-      if (prob < 0.01) {
+      if (prob < 0.0001) {
         info.textContent = '';
         return;
       }
-      info.innerHTML = `| Значение: <span class="value-strong">${dataset.offset + relativeIndex}</span> | Вероятность: <span class="value-strong">${(prob * 100).toFixed(2)}%</span>`;
+      info.innerHTML = `| Сумма: <span class="value-strong">${dataset.offset + relativeIndex}</span> | Вероятность: <span class="value-strong">${(prob * 100).toFixed(2)}%</span>`;
     });
   }
 

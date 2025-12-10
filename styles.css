@@ -92,7 +92,7 @@ input[type="number"] {
 }
 
 .mut-label input[type="number"] {
-  width: 90px;
+  width: 80px;
 }
 
 .slider-label input[type="range"] {
