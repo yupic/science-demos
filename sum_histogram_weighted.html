@@ -17,7 +17,7 @@ License: MIT
   <style>
     .triple-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.85fr);
+      grid-template-columns: minmax(320px, max-content) minmax(0, 1fr);
       gap: 16px;
       align-items: flex-start;
     }
@@ -34,6 +34,8 @@ License: MIT
       padding: 10px 12px;
       border: 1px solid var(--border);
       box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      width: max-content;
+      max-width: 100%;
     }
 
     .triple-card h2 {
@@ -54,7 +56,6 @@ License: MIT
     }
 
     table.triples-table {
-      width: 100%;
       border-collapse: collapse;
       font-size: 13px;
     }
@@ -64,32 +65,36 @@ License: MIT
       top: 0;
       background: var(--card);
       z-index: 1;
-      border-bottom: 1px solid var(--border);
+      /*border-bottom: 1px solid var(--border);*/
     }
 
     table.triples-table th,
     table.triples-table td {
-      padding: 4px 4px;
+      padding: 0;
       text-align: center;
-      border-bottom: 1px solid rgba(0,0,0,0.02);
+      /*border-bottom: 1px solid rgba(0,0,0,0.02);*/
       white-space: nowrap;
     }
 
-    table.triples-table tbody tr:nth-child(2n+1) {
-      background: rgba(0,0,0,0.01);
+    table.triples-table tbody tr:nth-child(2n+1),
+    table.triples-table tbody tr:nth-child(2n+1) input {
+      background: var(--bg);
     }
 
     .value-cell {
       padding: 0;
+      /*border: 1px solid var(--border);*/
     }
 
-    .value-input {
-      width: 100%;
-      padding: 6px 6px;
+    input.value-input {
+      width: 60px;
+      padding: 6px;
       font-size: 13px;
       border-radius: 0;
-      border: 1px solid var(--border);
+      /*border: 1px solid var(--border);*/
+      border: none;
       box-sizing: border-box;
+      text-align: right;
     }
 
     .prob-cell {
@@ -103,10 +108,11 @@ License: MIT
       flex: 1;
     }
 
-    .prob-input {
-      width: 46px;
-      padding: 3px 4px;
-      font-size: 12px;
+    input.prob-input {
+      width: 55px;
+      padding: 6px;
+      font-size: 13px;
+      border: none;
     }
 
     .row-info {
@@ -137,23 +143,23 @@ License: MIT
 
   <div class="controls">
     <label class="mut-label">N (1–100): <input id="countInput" type="number" min="1" max="100" value="30"></label>
-    <label class="mut-label">min: <input id="minInput" type="number" value="-3"></label>
-    <label class="mut-label">max: <input id="maxInput" type="number" value="3"></label>
+    <label class="mut-label">min: <input id="minInput" type="number" min="-100" max="100" value="-3"></label>
+    <label class="mut-label">max: <input id="maxInput" type="number" min="-100" max="100" value="3"></label>
     <button id="regenBtn">Обновить</button>
   </div>
 
   <div class="triple-layout">
     <div class="triple-card">
       <h2>Параметры случайных величин</h2>
-      <p>Числа — целые в диапазоне <code>[min; max]</code>. Вероятность <strong>a</strong> — от 1% до 99%. Можно редактировать вручную.</p>
+      <p>Числа — целые в диапазоне <code>[min; max]</code>. Вероятность <strong>a</strong> — от 0% до 100% (при генерации — 1…99%). Можно редактировать вручную.</p>
       <div class="triples-wrapper">
         <table class="triples-table">
           <thead>
             <tr>
               <th>a</th>
               <th>b</th>
-              <th>P(a), %</th>
-              <th>Информация</th>
+              <th>Вероятности a/b %</th> 
+              <th>Среднее</th>
             </tr>
           </thead>
           <tbody id="triplesBody"></tbody>
@@ -439,7 +445,7 @@ License: MIT
 
       const a = parseIntSafe(inputA.value, 0);
       const b = parseIntSafe(inputB.value, 0);
-      const p = clampInt(slider.value, 1, 99, 50) / 100;
+      const p = clampInt(slider.value, 0, 100, 50) / 100;
 
       triples.push({ a, b, p });
     });
@@ -454,7 +460,7 @@ License: MIT
     if (!inputA || !inputB || !slider || !info) return;
     const a = parseIntSafe(inputA.value, 0);
     const b = parseIntSafe(inputB.value, 0);
-    const pPercent = clampInt(slider.value, 1, 99, 50);
+    const pPercent = clampInt(slider.value, 0, 100, 50);
     const qPercent = 100 - pPercent;
     const mean = a * (pPercent / 100) + b * (qPercent / 100);
     info.textContent = `P(b) = ${qPercent}% | E = ${mean.toFixed(2)}`;
@@ -494,14 +500,14 @@ License: MIT
     tdProb.className = 'prob-cell';
     const slider = document.createElement('input');
     slider.type = 'range';
-    slider.min = '1';
-    slider.max = '99';
+    slider.min = '0';
+    slider.max = '100';
     slider.value = '50';
     slider.className = 'prob-slider';
     const number = document.createElement('input');
     number.type = 'number';
-    number.min = '1';
-    number.max = '99';
+    number.min = '0';
+    number.max = '100';
     number.value = '50';
     number.className = 'prob-input';
     const percentSpan = document.createElement('span');
@@ -531,7 +537,7 @@ License: MIT
     });
 
     number.addEventListener('input', () => {
-      const v = clampInt(number.value, 1, 99, 50);
+      const v = clampInt(number.value, 0, 100, 50);
       number.value = v;
       slider.value = v;
       onValueChange();
@@ -599,8 +605,8 @@ License: MIT
   });
 
   function syncMinMax() {
-    let minVal = parseIntSafe(minInput.value, -3);
-    let maxVal = parseIntSafe(maxInput.value, 3);
+    let minVal = clampInt(minInput.value, -100, 100, -3);
+    let maxVal = clampInt(maxInput.value, -100, 100, 3);
     if (minVal > maxVal) {
       [minVal, maxVal] = [maxVal, minVal];
     }
