@@ -152,8 +152,15 @@ License: MIT
     <label class="mut-label">Количество чисел: <input id="countInput" type="number" min="1" max="100" value="30"></label>
     <label class="mut-label">Диапазон для a и b: <input id="minInput" type="number" min="-100" max="100" value="-3"></label>
     <label class="mut-label">&mdash; <input id="maxInput" type="number" min="-100" max="100" value="3"></label>
+    <label class="mut-label">Масштаб:
+      <select id="scaleMode">
+        <option value="full" selected>Полный</option>
+        <option value="auto">Авто</option>
+      </select>
+    </label>
     <button id="regenBtn">Обновить</button>
   </div>
+  <div class="stats" id="statsLine"></div>
 
   <div class="triple-layout">
       <div class="triple-card">
@@ -178,7 +185,6 @@ License: MIT
       <div class="canvas-frame">
         <canvas id="sumCanvas"></canvas>
       </div>
-      <div class="sum-stats" id="sumStats"></div>
     </div>
   </div>
 </div>
@@ -195,14 +201,21 @@ License: MIT
   const ctx = canvas.getContext('2d');
   const regenBtn = document.getElementById('regenBtn');
   const triplesBody = document.getElementById('triplesBody');
-  const sumStats = document.getElementById('sumStats');
+  const statsLine = document.getElementById('statsLine');
   const countInput = document.getElementById('countInput');
   const minInput = document.getElementById('minInput');
   const maxInput = document.getElementById('maxInput');
+  const scaleSelect = document.getElementById('scaleMode');
 
   let currentDataset = null;
   let cachedMin = -3;
   let cachedMax = 3;
+  let lastMinSum = 0;
+  let lastMaxSum = 0;
+  let hoverValue = null;
+  let hoverProb = null;
+  let lastDrawMeta = null;
+  const TRIM_THRESHOLD = 0.0001;
 
   function clampInt(value, min, max, fallback) {
     const n = parseInt(value, 10);
@@ -372,7 +385,7 @@ License: MIT
     const variance = Math.max(0, meanSq - mean * mean);
     const sd = Math.sqrt(variance);
 
-    const threshold = 0.0001;
+    const threshold = TRIM_THRESHOLD;
     let displayMin = minX;
     let displayMax = maxX;
     for (let i = 0; i < probs.length; i++) {
@@ -391,7 +404,7 @@ License: MIT
     return { probs, minX, maxX, mean, sd, displayMin, displayMax };
   }
 
-  function drawHistogram(dataset) {
+  function drawHistogram(dataset, drawMin, drawMax) {
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
     const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.6, 520));
@@ -415,6 +428,8 @@ License: MIT
     ctx.fillStyle = '#f8f9fc';
     ctx.fillRect(marginLeft, marginTop, innerWidth, innerHeight);
 
+    lastDrawMeta = null;
+
     if (!dataset) {
       drawAxesOnly(0, 0, marginLeft, marginTop, innerWidth, innerHeight, width, height);
       return;
@@ -429,16 +444,24 @@ License: MIT
     const { ticks: yTicks, maxValue: yMax } = generateYTicks(maxProb);
     const scaleY = yMax > 0 ? innerHeight / yMax : 0;
 
-    const drawMin = Number.isFinite(displayMin) ? displayMin : minX;
-    const drawMax = Number.isFinite(displayMax) ? displayMax : maxX;
-    const xMinEdge = drawMin - 0.5;
-    const xMaxEdge = drawMax + 0.5;
+    const drawMinFinal = Number.isFinite(drawMin)
+      ? drawMin
+      : Number.isFinite(displayMin)
+        ? displayMin
+        : minX;
+    const drawMaxFinal = Number.isFinite(drawMax)
+      ? drawMax
+      : Number.isFinite(displayMax)
+        ? displayMax
+        : maxX;
+    const xMinEdge = drawMinFinal - 0.5;
+    const xMaxEdge = drawMaxFinal + 0.5;
     const xRange = xMaxEdge - xMinEdge || 1;
     const barWidth = innerWidth / xRange;
 
     ctx.fillStyle = 'rgba(44, 123, 229, 0.45)';
-    const startIdx = drawMin - minX;
-    const endIdx = drawMax - minX;
+    const startIdx = drawMinFinal - minX;
+    const endIdx = drawMaxFinal - minX;
     for (let i = Math.max(0, startIdx); i <= Math.min(probs.length - 1, endIdx); i++) {
       const prob = probs[i];
       if (prob <= 0) continue;
@@ -453,21 +476,39 @@ License: MIT
       ctx.fillRect(x, y, drawWidth, h);
     }
 
-    drawAxesOnly(drawMin, drawMax, marginLeft, marginTop, innerWidth, innerHeight, width, height, yTicks, yMax);
+    drawAxesOnly(drawMinFinal, drawMaxFinal, marginLeft, marginTop, innerWidth, innerHeight, width, height, yTicks, yMax);
+
+    lastDrawMeta = {
+      marginLeft,
+      marginTop,
+      innerWidth,
+      innerHeight,
+      xMinEdge,
+      xMaxEdge,
+      drawMin: drawMinFinal,
+      drawMax: drawMaxFinal,
+      minX,
+      probs,
+    };
   }
 
-  function updateStats(dataset, tripleCount, minSum, maxSum) {
+  function updateStats(dataset) {
     if (!dataset) {
-      sumStats.textContent = '';
+      statsLine.textContent = '';
       return;
     }
     const { mean, sd } = dataset;
-    sumStats.innerHTML =
-      `Слагаемых: <span class="value-strong">${tripleCount}</span>` +
-      ` | Среднее суммы: <span class="value-strong">${mean.toFixed(2)}</span>` +
+    const minSum = lastMinSum;
+    const maxSum = lastMaxSum;
+    const valueText = hoverValue !== null ? hoverValue : '—';
+    const probText = hoverProb !== null ? `${(hoverProb * 100).toFixed(2)}%` : '—';
+    statsLine.innerHTML =
+      `Мин: <span class="value-strong">${minSum}</span>` +
+      ` | Макс: <span class="value-strong">${maxSum}</span>` +
+      ` | Среднее: <span class="value-strong">${mean.toFixed(2)}</span>` +
       ` | σ: <span class="value-strong">${sd.toFixed(2)}</span>` +
-      ` | Мин: <span class="value-strong">${minSum}</span>` +
-      ` | Макс: <span class="value-strong">${maxSum}</span>`;
+      ` | Значение: <span class="value-strong">${valueText}</span>` +
+      ` | Вероятность: <span class="value-strong">${probText}</span>`;
   }
 
   function getTriplesFromTable() {
@@ -507,14 +548,21 @@ License: MIT
     const triples = getTriplesFromTable();
     const dataset = computeDistribution(triples);
     currentDataset = dataset;
-    drawHistogram(dataset);
     let minSum = 0;
     let maxSum = 0;
     for (const { a, b } of triples) {
       minSum += Math.min(a, b);
       maxSum += Math.max(a, b);
     }
-    updateStats(dataset, triples.length, minSum, maxSum);
+    lastMinSum = minSum;
+    lastMaxSum = maxSum;
+    hoverValue = null;
+    hoverProb = null;
+    const scaleMode = scaleSelect.value;
+    const drawMin = scaleMode === 'full' ? minSum : dataset?.displayMin;
+    const drawMax = scaleMode === 'full' ? maxSum : dataset?.displayMax;
+    drawHistogram(dataset, drawMin, drawMax);
+    updateStats(dataset);
     Array.from(triplesBody.children).forEach(updateRowInfo);
   }
 
@@ -648,8 +696,58 @@ License: MIT
   minInput.addEventListener('input', syncMinMax);
   maxInput.addEventListener('input', syncMinMax);
 
+  scaleSelect.addEventListener('change', () => {
+    const scaleMode = scaleSelect.value;
+    const drawMin = scaleMode === 'full' ? lastMinSum : currentDataset?.displayMin;
+    const drawMax = scaleMode === 'full' ? lastMaxSum : currentDataset?.displayMax;
+    drawHistogram(currentDataset, drawMin, drawMax);
+    updateStats(currentDataset);
+  });
+
   window.addEventListener('resize', () => {
-    drawHistogram(currentDataset);
+    const scaleMode = scaleSelect.value;
+    const drawMin = scaleMode === 'full' ? lastMinSum : currentDataset?.displayMin;
+    const drawMax = scaleMode === 'full' ? lastMaxSum : currentDataset?.displayMax;
+    drawHistogram(currentDataset, drawMin, drawMax);
+  });
+
+  function handleHover(event) {
+    if (!lastDrawMeta || !currentDataset) {
+      hoverValue = null;
+      hoverProb = null;
+      updateStats(currentDataset);
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const { marginLeft, innerWidth, xMinEdge, xMaxEdge, drawMin, drawMax, minX, probs } = lastDrawMeta;
+    if (x < marginLeft || x > marginLeft + innerWidth) {
+      hoverValue = null;
+      hoverProb = null;
+      updateStats(currentDataset);
+      return;
+    }
+    const rel = (x - marginLeft) / innerWidth;
+    const pos = xMinEdge + rel * (xMaxEdge - xMinEdge);
+    let value = Math.round(pos);
+    if (value < drawMin || value > drawMax) {
+      hoverValue = null;
+      hoverProb = null;
+      updateStats(currentDataset);
+      return;
+    }
+    const idx = value - minX;
+    const prob = idx >= 0 && idx < probs.length ? probs[idx] : 0;
+    hoverValue = value;
+    hoverProb = prob;
+    updateStats(currentDataset);
+  }
+
+  canvas.addEventListener('mousemove', handleHover);
+  canvas.addEventListener('mouseleave', () => {
+    hoverValue = null;
+    hoverProb = null;
+    updateStats(currentDataset);
   });
 
   function init() {
