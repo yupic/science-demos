@@ -19,7 +19,7 @@ License: MIT
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
       gap: 16px;
-      align-items: flex-start;
+      align-items: stretch;
     }
 
     @media (max-width: 900px) {
@@ -35,6 +35,13 @@ License: MIT
       border: 1px solid var(--border);
       box-shadow: 0 2px 6px rgba(0,0,0,0.03);
       max-width: 100%;
+      height: 100%;
+    }
+
+    .histogram-col {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
 
     .triple-card h2 {
@@ -65,14 +72,12 @@ License: MIT
       top: 0;
       background: var(--card);
       z-index: 1;
-      /*border-bottom: 1px solid var(--border);*/
     }
 
     table.triples-table th,
     table.triples-table td {
       padding: 0;
       text-align: center;
-      /*border-bottom: 1px solid rgba(0,0,0,0.02);*/
       white-space: nowrap;
     }
 
@@ -98,20 +103,20 @@ License: MIT
     }
 
     .prob-cell {
-      display: flex;
-      align-items: center;
       gap: 4px;
-      min-width: 160px;
     }
 
     .prob-slider {
-      flex: 1;
+      vertical-align: middle;
     }
 
     .prob-labels {
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 4px;
       font-size: 12px;
       color: var(--muted);
-      min-width: 84px;
+      min-width: 9ch;
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
@@ -119,6 +124,7 @@ License: MIT
     .row-info {
       font-size: 12px;
       color: var(--muted);
+      min-width: 7ch;
     }
 
     .sum-stats {
@@ -143,18 +149,18 @@ License: MIT
   </p>
 
   <div class="controls">
-    <label class="mut-label">N (1–100): <input id="countInput" type="number" min="1" max="100" value="30"></label>
-    <label class="mut-label">min: <input id="minInput" type="number" min="-100" max="100" value="-3"></label>
-    <label class="mut-label">max: <input id="maxInput" type="number" min="-100" max="100" value="3"></label>
+    <label class="mut-label">Количество чисел: <input id="countInput" type="number" min="1" max="100" value="30"></label>
+    <label class="mut-label">Диапазон для a и b: <input id="minInput" type="number" min="-100" max="100" value="-3"></label>
+    <label class="mut-label">&mdash; <input id="maxInput" type="number" min="-100" max="100" value="3"></label>
     <button id="regenBtn">Обновить</button>
   </div>
 
   <div class="triple-layout">
-    <div class="triple-card">
-      <h2>Параметры случайных величин</h2>
-      <p>Числа — целые в диапазоне <code>[min; max]</code>. Вероятность <strong>a</strong> — от 0% до 100% (при генерации — 1…99%). Можно редактировать вручную.</p>
-      <div class="triples-wrapper">
-        <table class="triples-table">
+      <div class="triple-card">
+        <h2>Параметры случайных величин</h2>
+        <p>Значения <strong>a</strong>, <strong>b</strong> и их вероятности можно редактировать вручную.</p>
+        <div class="triples-wrapper">
+          <table class="triples-table">
           <thead>
             <tr>
               <th>a</th>
@@ -168,7 +174,7 @@ License: MIT
       </div>
     </div>
 
-    <div>
+    <div class="histogram-col">
       <div class="canvas-frame">
         <canvas id="sumCanvas"></canvas>
       </div>
@@ -208,6 +214,12 @@ License: MIT
     const n = parseInt(value, 10);
     if (!Number.isFinite(n)) return fallback;
     return n;
+  }
+
+  function clampValueInput(input) {
+    const clamped = clampInt(input.value, -100, 100, 0);
+    input.value = clamped;
+    return clamped;
   }
 
   function randomInt(min, max) {
@@ -360,7 +372,23 @@ License: MIT
     const variance = Math.max(0, meanSq - mean * mean);
     const sd = Math.sqrt(variance);
 
-    return { probs, minX, maxX, mean, sd };
+    const threshold = 0.0001;
+    let displayMin = minX;
+    let displayMax = maxX;
+    for (let i = 0; i < probs.length; i++) {
+      if (probs[i] >= threshold) {
+        displayMin = minX + i;
+        break;
+      }
+    }
+    for (let i = probs.length - 1; i >= 0; i--) {
+      if (probs[i] >= threshold) {
+        displayMax = minX + i;
+        break;
+      }
+    }
+
+    return { probs, minX, maxX, mean, sd, displayMin, displayMax };
   }
 
   function drawHistogram(dataset) {
@@ -392,7 +420,7 @@ License: MIT
       return;
     }
 
-    const { probs, minX, maxX } = dataset;
+    const { probs, minX, maxX, displayMin, displayMax } = dataset;
 
     let maxProb = 0;
     for (const p of probs) {
@@ -401,13 +429,17 @@ License: MIT
     const { ticks: yTicks, maxValue: yMax } = generateYTicks(maxProb);
     const scaleY = yMax > 0 ? innerHeight / yMax : 0;
 
-    const xMinEdge = minX - 0.5;
-    const xMaxEdge = maxX + 0.5;
+    const drawMin = Number.isFinite(displayMin) ? displayMin : minX;
+    const drawMax = Number.isFinite(displayMax) ? displayMax : maxX;
+    const xMinEdge = drawMin - 0.5;
+    const xMaxEdge = drawMax + 0.5;
     const xRange = xMaxEdge - xMinEdge || 1;
     const barWidth = innerWidth / xRange;
 
     ctx.fillStyle = 'rgba(44, 123, 229, 0.45)';
-    for (let i = 0; i < probs.length; i++) {
+    const startIdx = drawMin - minX;
+    const endIdx = drawMax - minX;
+    for (let i = Math.max(0, startIdx); i <= Math.min(probs.length - 1, endIdx); i++) {
       const prob = probs[i];
       if (prob <= 0) continue;
       const value = minX + i;
@@ -421,10 +453,10 @@ License: MIT
       ctx.fillRect(x, y, drawWidth, h);
     }
 
-    drawAxesOnly(minX, maxX, marginLeft, marginTop, innerWidth, innerHeight, width, height, yTicks, yMax);
+    drawAxesOnly(drawMin, drawMax, marginLeft, marginTop, innerWidth, innerHeight, width, height, yTicks, yMax);
   }
 
-  function updateStats(dataset, tripleCount) {
+  function updateStats(dataset, tripleCount, minSum, maxSum) {
     if (!dataset) {
       sumStats.textContent = '';
       return;
@@ -433,7 +465,9 @@ License: MIT
     sumStats.innerHTML =
       `Слагаемых: <span class="value-strong">${tripleCount}</span>` +
       ` | Среднее суммы: <span class="value-strong">${mean.toFixed(2)}</span>` +
-      ` | σ: <span class="value-strong">${sd.toFixed(2)}</span>`;
+      ` | σ: <span class="value-strong">${sd.toFixed(2)}</span>` +
+      ` | Мин: <span class="value-strong">${minSum}</span>` +
+      ` | Макс: <span class="value-strong">${maxSum}</span>`;
   }
 
   function getTriplesFromTable() {
@@ -444,8 +478,8 @@ License: MIT
       const slider = tr.querySelector('.prob-slider');
       if (!inputA || !inputB || !slider) return;
 
-      const a = parseIntSafe(inputA.value, 0);
-      const b = parseIntSafe(inputB.value, 0);
+      const a = clampValueInput(inputA);
+      const b = clampValueInput(inputB);
       const p = clampInt(slider.value, 0, 100, 50) / 100;
 
       triples.push({ a, b, p });
@@ -460,8 +494,8 @@ License: MIT
     const info = tr.querySelector('.row-info');
     const labels = tr.querySelector('.prob-labels');
     if (!inputA || !inputB || !slider || !info || !labels) return;
-    const a = parseIntSafe(inputA.value, 0);
-    const b = parseIntSafe(inputB.value, 0);
+    const a = clampValueInput(inputA);
+    const b = clampValueInput(inputB);
     const pPercent = clampInt(slider.value, 0, 100, 50);
     const qPercent = 100 - pPercent;
     const mean = a * (pPercent / 100) + b * (qPercent / 100);
@@ -474,7 +508,13 @@ License: MIT
     const dataset = computeDistribution(triples);
     currentDataset = dataset;
     drawHistogram(dataset);
-    updateStats(dataset, triples.length);
+    let minSum = 0;
+    let maxSum = 0;
+    for (const { a, b } of triples) {
+      minSum += Math.min(a, b);
+      maxSum += Math.max(a, b);
+    }
+    updateStats(dataset, triples.length, minSum, maxSum);
     Array.from(triplesBody.children).forEach(updateRowInfo);
   }
 
@@ -487,6 +527,8 @@ License: MIT
     inputA.type = 'number';
     inputA.className = 'value-input value-a';
     inputA.step = '1';
+    inputA.min = '-100';
+    inputA.max = '100';
     tdA.appendChild(inputA);
     tr.appendChild(tdA);
 
@@ -496,6 +538,8 @@ License: MIT
     inputB.type = 'number';
     inputB.className = 'value-input value-b';
     inputB.step = '1';
+    inputB.min = '-100';
+    inputB.max = '100';
     tdB.appendChild(inputB);
     tr.appendChild(tdB);
 
