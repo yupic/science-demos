@@ -11,7 +11,7 @@ License: MIT
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Сумма случайных чисел (взвешенные)</title>
+  <title>ЦПТ: демонстрация</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css" />
   <style>
@@ -141,11 +141,11 @@ License: MIT
 </head>
 <body>
 <div class="container">
-  <h1>ЦПТ: сумма случайных чисел с произвольными парами</h1>
+  <h1>Демонстрация работы центральной предельной теоремы (ЦПТ)</h1>
   <p class="desc">
     В каждой строке задаётся случайная величина: с вероятностью <span class="value-strong">p</span> берётся <span class="value-strong">a</span>,
-    а с вероятностью <span class="value-strong">1−p</span> — <span class="value-strong">b</span>. Внизу показана гистограмма распределения суммы всех
-    величин. Попробуйте менять параметры, чтобы увидеть, как работает ЦПТ.
+    а с вероятностью <span class="value-strong">(1−p)</span> — <span class="value-strong">b</span>. Справа строится гистограмма распределения суммы всех
+    случайных величин. Попробуйте менять параметры, чтобы увидеть, как работает ЦПТ.
   </p>
 
   <div class="controls">
@@ -165,7 +165,7 @@ License: MIT
   <div class="triple-layout">
       <div class="triple-card">
         <h2>Параметры случайных величин</h2>
-        <p>Значения <strong>a</strong>, <strong>b</strong> и их вероятности можно редактировать вручную.</p>
+        <p>Значения <strong>a</strong>, <strong>b</strong> и их вероятности можно редактировать.</p>
         <div class="triples-wrapper">
           <table class="triples-table">
           <thead>
@@ -215,7 +215,7 @@ License: MIT
   let hoverValue = null;
   let hoverProb = null;
   let lastDrawMeta = null;
-  const TRIM_THRESHOLD = 0.0001;
+  const TRIM_THRESHOLD = 0.000001;
 
   function clampInt(value, min, max, fallback) {
     const n = parseInt(value, 10);
@@ -227,6 +227,40 @@ License: MIT
     const n = parseInt(value, 10);
     if (!Number.isFinite(n)) return fallback;
     return n;
+  }
+
+  function generateSuperscript(exp) {
+    const map = {
+      '-': '\u207b',
+      '0': '\u2070',
+      '1': '\u00b9',
+      '2': '\u00b2',
+      '3': '\u00b3',
+      '4': '\u2074',
+      '5': '\u2075',
+      '6': '\u2076',
+      '7': '\u2077',
+      '8': '\u2078',
+      '9': '\u2079',
+    };
+    return String(exp)
+      .split('')
+      .map((c) => map[c] ?? c)
+      .join('');
+  }
+
+  function formatProbability(prob) {
+    if (prob === null || prob === undefined) return '—';
+    if (prob === 0) return '0';
+    const percent = prob * 100;
+    if (percent >= 0.01) return `${percent.toFixed(2)}%`;
+    let exp = Math.floor(Math.log10(percent));
+    let mantissa = Number((percent / Math.pow(10, exp)).toFixed(0));
+    if (mantissa >= 10) {
+      mantissa = 1.0;
+      exp += 1;
+    }
+    return `${mantissa.toFixed(0)}×10${generateSuperscript(exp)} %`;
   }
 
   function clampValueInput(input) {
@@ -407,7 +441,7 @@ License: MIT
   function drawHistogram(dataset, drawMin, drawMax) {
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
-    const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.6, 520));
+    const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.8, 520));
     canvas.style.height = `${targetHeight}px`;
     canvas.width = Math.floor(displayWidth * dpr);
     canvas.height = Math.floor(targetHeight * dpr);
@@ -501,14 +535,14 @@ License: MIT
     const minSum = lastMinSum;
     const maxSum = lastMaxSum;
     const valueText = hoverValue !== null ? hoverValue : '—';
-    const probText = hoverProb !== null ? `${(hoverProb * 100).toFixed(2)}%` : '—';
+    const probText = formatProbability(hoverProb);
     statsLine.innerHTML =
-      `Мин: <span class="value-strong">${minSum}</span>` +
-      ` | Макс: <span class="value-strong">${maxSum}</span>` +
-      ` | Среднее: <span class="value-strong">${mean.toFixed(2)}</span>` +
+      `<span class="value-strong">Параметры суммы</span>: min: <span class="value-strong">${minSum}</span>` +
+      ` | max: <span class="value-strong">${maxSum}</span>` +
+      ` | среднее: <span class="value-strong">${mean.toFixed(2)}</span>` +
       ` | σ: <span class="value-strong">${sd.toFixed(2)}</span>` +
-      ` | Значение: <span class="value-strong">${valueText}</span>` +
-      ` | Вероятность: <span class="value-strong">${probText}</span>`;
+      ` | значение: <span class="value-strong">${valueText}</span>` +
+      ` | вероятность: <span class="value-strong">${probText}</span>`;
   }
 
   function getTriplesFromTable() {
