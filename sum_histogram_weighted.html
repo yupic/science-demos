@@ -159,6 +159,7 @@ License: MIT
       </select>
     </label>
     <button id="regenBtn">Обновить</button>
+    <button id="simulateBtn">Смоделировать 100 000 сумм</button>
   </div>
   <div class="stats" id="statsLine"></div>
 
@@ -200,6 +201,7 @@ License: MIT
   const canvas = document.getElementById('sumCanvas');
   const ctx = canvas.getContext('2d');
   const regenBtn = document.getElementById('regenBtn');
+  const simulateBtn = document.getElementById('simulateBtn');
   const triplesBody = document.getElementById('triplesBody');
   const statsLine = document.getElementById('statsLine');
   const countInput = document.getElementById('countInput');
@@ -208,6 +210,7 @@ License: MIT
   const scaleSelect = document.getElementById('scaleMode');
 
   let currentDataset = null;
+  let overlayDataset = null;
   let cachedMin = -3;
   let cachedMax = 3;
   let lastMinSum = 0;
@@ -216,6 +219,7 @@ License: MIT
   let hoverProb = null;
   let lastDrawMeta = null;
   const TRIM_THRESHOLD = 0.000001;
+  const OVERLAY_COLOR = 'rgba(227, 52, 47, 0.45)';
 
   function clampInt(value, min, max, fallback) {
     const n = parseInt(value, 10);
@@ -438,6 +442,63 @@ License: MIT
     return { probs, minX, maxX, mean, sd, displayMin, displayMax };
   }
 
+  function simulateMonteCarlo(triples, samples = 100000) {
+    if (!triples || triples.length === 0 || samples <= 0) return null;
+
+    const counts = new Map();
+    let minX = Infinity;
+    let maxX = -Infinity;
+
+    for (let i = 0; i < samples; i++) {
+      let sum = 0;
+      for (const { a, b, p } of triples) {
+        sum += Math.random() < p ? a : b;
+      }
+      counts.set(sum, (counts.get(sum) || 0) + 1);
+      if (sum < minX) minX = sum;
+      if (sum > maxX) maxX = sum;
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return null;
+
+    const length = maxX - minX + 1;
+    const probs = new Array(length).fill(0);
+    for (const [value, count] of counts.entries()) {
+      const idx = value - minX;
+      if (idx >= 0 && idx < length) {
+        probs[idx] = count / samples;
+      }
+    }
+
+    let mean = 0;
+    let meanSq = 0;
+    for (let i = 0; i < length; i++) {
+      const x = minX + i;
+      const p = probs[i];
+      mean += x * p;
+      meanSq += x * x * p;
+    }
+    const variance = Math.max(0, meanSq - mean * mean);
+    const sd = Math.sqrt(variance);
+
+    let displayMin = minX;
+    let displayMax = maxX;
+    for (let i = 0; i < probs.length; i++) {
+      if (probs[i] >= TRIM_THRESHOLD) {
+        displayMin = minX + i;
+        break;
+      }
+    }
+    for (let i = probs.length - 1; i >= 0; i--) {
+      if (probs[i] >= TRIM_THRESHOLD) {
+        displayMax = minX + i;
+        break;
+      }
+    }
+
+    return { probs, minX, maxX, mean, sd, displayMin, displayMax };
+  }
+
   function drawHistogram(dataset, drawMin, drawMax) {
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
@@ -464,19 +525,14 @@ License: MIT
 
     lastDrawMeta = null;
 
+    const overlay = overlayDataset;
+
     if (!dataset) {
       drawAxesOnly(0, 0, marginLeft, marginTop, innerWidth, innerHeight, width, height);
       return;
     }
 
     const { probs, minX, maxX, displayMin, displayMax } = dataset;
-
-    let maxProb = 0;
-    for (const p of probs) {
-      if (p > maxProb) maxProb = p;
-    }
-    const { ticks: yTicks, maxValue: yMax } = generateYTicks(maxProb);
-    const scaleY = yMax > 0 ? innerHeight / yMax : 0;
 
     const drawMinFinal = Number.isFinite(drawMin)
       ? drawMin
@@ -493,9 +549,28 @@ License: MIT
     const xRange = xMaxEdge - xMinEdge || 1;
     const barWidth = innerWidth / xRange;
 
-    ctx.fillStyle = 'rgba(44, 123, 229, 0.45)';
+    let maxProb = 0;
     const startIdx = drawMinFinal - minX;
     const endIdx = drawMaxFinal - minX;
+    for (let i = Math.max(0, startIdx); i <= Math.min(probs.length - 1, endIdx); i++) {
+      const prob = probs[i];
+      if (prob > maxProb) maxProb = prob;
+    }
+
+    if (overlay) {
+      const { probs: overlayProbs, minX: overlayMinX } = overlay;
+      const overlayStart = drawMinFinal - overlayMinX;
+      const overlayEnd = drawMaxFinal - overlayMinX;
+      for (let i = Math.max(0, overlayStart); i <= Math.min(overlayProbs.length - 1, overlayEnd); i++) {
+        const prob = overlayProbs[i];
+        if (prob > maxProb) maxProb = prob;
+      }
+    }
+
+    const { ticks: yTicks, maxValue: yMax } = generateYTicks(maxProb);
+    const scaleY = yMax > 0 ? innerHeight / yMax : 0;
+
+    ctx.fillStyle = 'rgba(44, 123, 229, 0.45)';
     for (let i = Math.max(0, startIdx); i <= Math.min(probs.length - 1, endIdx); i++) {
       const prob = probs[i];
       if (prob <= 0) continue;
@@ -508,6 +583,26 @@ License: MIT
       const drawWidth = Math.max(1, barWidth * 0.9);
       const x = xLeft + (barWidth - drawWidth) / 2;
       ctx.fillRect(x, y, drawWidth, h);
+    }
+
+    if (overlay) {
+      const { probs: overlayProbs, minX: overlayMinX } = overlay;
+      ctx.fillStyle = OVERLAY_COLOR;
+      const overlayStart = drawMinFinal - overlayMinX;
+      const overlayEnd = drawMaxFinal - overlayMinX;
+      for (let i = Math.max(0, overlayStart); i <= Math.min(overlayProbs.length - 1, overlayEnd); i++) {
+        const prob = overlayProbs[i];
+        if (prob <= 0) continue;
+        const value = overlayMinX + i;
+        const xLeft = marginLeft + ((value - 0.5 - xMinEdge) / xRange) * innerWidth;
+        const h = prob * scaleY;
+        if (h < 1) continue;
+        const y = marginTop + innerHeight - h;
+        if (xLeft + barWidth < marginLeft || xLeft > width - marginRight) continue;
+        const drawWidth = Math.max(1, barWidth * 0.75);
+        const x = xLeft + (barWidth - drawWidth) / 2;
+        ctx.fillRect(x, y, drawWidth, h);
+      }
     }
 
     drawAxesOnly(drawMinFinal, drawMaxFinal, marginLeft, marginTop, innerWidth, innerHeight, width, height, yTicks, yMax);
@@ -582,6 +677,7 @@ License: MIT
     const triples = getTriplesFromTable();
     const dataset = computeDistribution(triples);
     currentDataset = dataset;
+    overlayDataset = null;
     let minSum = 0;
     let maxSum = 0;
     for (const { a, b } of triples) {
@@ -705,7 +801,17 @@ License: MIT
     updateDistribution();
   }
 
+  function addMonteCarloOverlay() {
+    const triples = getTriplesFromTable();
+    overlayDataset = simulateMonteCarlo(triples, 100000);
+    const scaleMode = scaleSelect.value;
+    const drawMin = scaleMode === 'full' ? lastMinSum : currentDataset?.displayMin;
+    const drawMax = scaleMode === 'full' ? lastMaxSum : currentDataset?.displayMax;
+    drawHistogram(currentDataset, drawMin, drawMax);
+  }
+
   regenBtn.addEventListener('click', regenAllAndUpdate);
+  simulateBtn.addEventListener('click', addMonteCarloOverlay);
 
   countInput.addEventListener('input', () => {
     const val = clampInt(countInput.value, 1, 100, 30);
