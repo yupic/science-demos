@@ -46,3 +46,23 @@ function generateYTicks(maxProb) {
   const ticks = Array.from({ length: 5 }, (_, i) => (maxValue * i) / 4);
   return { ticks, maxValue };
 }
+
+function generateSuperscript(exp) {
+  const map = {
+    '-': '\u207b',
+    '0': '\u2070',
+    '1': '\u00b9',
+    '2': '\u00b2',
+    '3': '\u00b3',
+    '4': '\u2074',
+    '5': '\u2075',
+    '6': '\u2076',
+    '7': '\u2077',
+    '8': '\u2078',
+    '9': '\u2079'
+  };
+  return String(exp)
+    .split('')
+    .map((c) => map[c] ?? c)
+    .join('');
+}
