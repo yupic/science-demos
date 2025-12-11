@@ -1,0 +1,232 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Интерактивные демонстрации</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    :root {
+      --primary-color: #2563eb; /* Синий акцент */
+      --bg-color: #f8fafc;      /* Светлый фон страницы */
+      --card-bg: #ffffff;       /* Фон карточек */
+      --text-main: #1e293b;     /* Темный текст */
+      --text-secondary: #64748b;/* Серый текст */
+      --border-color: #e2e8f0;  /* Цвет рамок */
+    }
+
+    /* Базовые стили */
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Контейнер */
+    .index_body {
+      max-width: 1000px;
+      margin: 10px auto 30px auto;
+      padding: 0 20px;
+    }
+
+    .index_body a {
+      text-decoration: none;
+      color: var(--primary-color);
+      transition: color 0.2s;
+    }
+
+    .index_body a:hover {
+      color: #1d4ed8;
+    }
+
+    /* Заголовки */
+    .index_body h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: #0f172a;
+    }
+
+    .index_body h2 {
+      font-size: 1.5rem;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 10px;
+    }
+
+    .index_body p {
+      color: #334155;
+    }
+
+    /* Секция ссылок на каналы (Chips) */
+    .channels-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .channel-link {
+      display: inline-flex;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 50px;
+      color: var(--text-main);
+      font-weight: 500;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .channel-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    .channel-link img {
+      height: 20px;
+      width: 20px;
+      margin-right: 10px;
+      object-fit: contain;
+    }
+
+    /* Сетка демонстраций (Cards) */
+    .tool_list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .tool-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tool-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+      border-color: var(--primary-color);
+    }
+
+    .tool-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--primary-color);
+    }
+    
+    /* Делаем всю карточку кликабельной через вложенную ссылку */
+    .tool-card a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .tool-desc {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* Github ссылка в описании */
+    .repo-link {
+      background: #eff6ff;
+      color: var(--primary-color);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+<div class="index_body">
+  <h1>Интерактивные демонстрации</h1>
+  <p style="font-size: 1.1rem; color: var(--text-secondary);">
+    Коллекция визуализаций для проекта <strong>@autism_science</strong>. 
+    Эти инструменты помогают понять принципы статистики и эволюции, о которых я рассказываю в видео.
+  </p>
+  <p>
+    Исходный код доступен на GitHub: <a href="https://github.com/yupic/science-demos" class="repo-link">science-demos</a>
+  </p>
+
+  <h2>Мои каналы</h2>
+  <div class="channels-grid">
+    <!-- Примечание: У первой картинки в вашем коде был пустой src (.png), я оставил заглушку или можно удалить -->
+    <a href="https://www.youtube.com/@autism-ru" class="channel-link">
+      <img src="https://www.youtube.com/s/desktop/012ade63/img/favicon_32x32.png" alt="YouTube"/> YouTube
+    </a>
+    <a href="https://vkvideo.ru/@autism_science" class="channel-link">
+      <img src="https://vkvideo.ru/images/icons/favicons/fav_vk_video.ico" alt="VK"/> VK Видео
+    </a>
+    <a href="https://rutube.ru/channel/72574142/" class="channel-link">
+      <img src="https://static.rutube.ru/static/img/favicon-icons/v3/icon.svg" alt="RuTube"/> RuTube
+    </a>
+    <a href="https://dzen.ru/autism_science" class="channel-link">
+      <img src="https://dzen.ru/logo-redesign-16.png" alt="Dzen"/> Дзен
+    </a>
+  </div>
+
+  <h2>Демонстрации</h2>
+  <ul class="tool_list">
+    <li class="tool-card">
+      <a href="01_coin_flips_distribution_animation.html">
+        <div class="tool-title">Распределение числа орлов</div>
+        <p class="tool-desc">Симуляция многократных подбрасываний нескольких монет и формирование графика количества выпавших орлов.</p>
+      </a>
+    </li>
+    
+    <li class="tool-card">
+      <a href="02_compare_coin_flip_probabilities.html">
+        <div class="tool-title">Влияние вероятности на форму распределения</div>
+        <p class="tool-desc">Сравните, как меняется форма колокола распределения, если менять вероятность выпадения орла.</p>
+      </a>
+    </li>
+
+    <li class="tool-card">
+      <a href="03_compare_random_sum_distributions.html">
+        <div class="tool-title">Распределение суммы случайных чисел</div>
+        <p class="tool-desc">Исследуйте изменение среднего и стандартного отклонения при изменении количества чисел и диапазона.</p>
+      </a>
+    </li>
+
+    <li class="tool-card">
+      <a href="04_central_limit_theorem.html">
+        <div class="tool-title">Центральная предельная теорема</div>
+        <p class="tool-desc">Интерактивная демонстрация работы ЦПТ при разных наборах параметров и выборках.</p>
+      </a>
+    </li>
+
+    <li class="tool-card">
+      <a href="05_giraffe_neck_evolution.html">
+        <div class="tool-title">Эволюция шеи жирафа</div>
+        <p class="tool-desc">Наблюдайте, как меняется распределение длины шеи жирафов в процессе естественного отбора.</p>
+      </a>
+    </li>
+  </ul>
+</div>
+
+<footer class="footer">
+  © autism_science • MIT License •
+  <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener">GitHub</a> •
+  <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener">YouTube</a> •
+  <a href="https://t.me/autism_science" target="_blank" rel="noopener">Telegram</a>
+</footer>
+
+</body>
+</html>
