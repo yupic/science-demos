@@ -69,12 +69,6 @@ License: MIT
   let currentRange = { min: 0, max: 100 };
   let hoveredValue = null;
 
-  function clampInt(value, min, max, fallback) {
-    const n = parseInt(value, 10);
-    if (!Number.isFinite(n)) return fallback;
-    return Math.min(Math.max(n, min), max);
-  }
-
   function uniformSumPmf(count, minValue, maxValue) {
     if (count <= 0) {
       return { probs: [1], offset: 0 };

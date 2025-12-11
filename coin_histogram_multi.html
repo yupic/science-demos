@@ -73,12 +73,6 @@ License: MIT
   let scaleMode = 'full';
   let currentRange = { min: 0, max: clampInt(coinInput.value, 1, 5000, 100) };
 
-  function clampInt(value, min, max, fallback) {
-    const n = parseInt(value, 10);
-    if (!Number.isFinite(n)) return fallback;
-    return Math.min(Math.max(n, min), max);
-  }
-
   function formatProbability(prob) {
     return `${(prob * 100).toFixed(2)}%`;
   }

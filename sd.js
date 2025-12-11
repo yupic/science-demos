@@ -35,6 +35,12 @@ function generateXTicks(domain, widthPx, minLabelGapPx = 34) {
   return ticks;
 }
 
+function clampInt(value, min, max, fallback) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(n, min), max);
+}
+
 function generateYTicks(maxProb) {
   const maxValue = maxProb > 0 ? maxProb : 1;
   const ticks = Array.from({ length: 5 }, (_, i) => (maxValue * i) / 4);

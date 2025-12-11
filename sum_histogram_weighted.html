@@ -218,12 +218,6 @@ License: MIT
   let lastDrawMeta = null;
   const TRIM_THRESHOLD = 0.000001;
 
-  function clampInt(value, min, max, fallback) {
-    const n = parseInt(value, 10);
-    if (!Number.isFinite(n)) return fallback;
-    return Math.min(Math.max(n, min), max);
-  }
-
   function parseIntSafe(value, fallback = 0) {
     const n = parseInt(value, 10);
     if (!Number.isFinite(n)) return fallback;
