@@ -19,6 +19,143 @@ License: MIT
       padding: 0;
       max-width: 989px;
     }
+
+    .canvas-frame.intrinsic-size {
+      width: auto;
+      max-width: 100%;
+    }
+
+    .canvas-frame.intrinsic-size canvas {
+      width: auto;
+      height: auto;
+      max-width: 100%;
+    }
+
+    .instruction-summary {
+      cursor: pointer;
+      padding: 8px;
+      font-weight: 600;
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+
+    .instruction-summary::marker,
+    .instruction-summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .instruction-summary::before {
+      content: '▶';
+      font-size: 13px;
+      transition: transform 0.2s ease;
+      color: var(--muted);
+    }
+
+    details[open] .instruction-summary::before {
+      content: '▼';
+      color: var(--muted);
+    }
+
+    .instruction-summary .summary-label-open {
+      display: none;
+    }
+
+    details[open] .instruction-summary .summary-label-open {
+      display: inline;
+    }
+
+    details[open] .instruction-summary .summary-label-closed {
+      display: none;
+    }
+
+    .charts-layout {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .charts-column {
+      flex: 0 0 auto;
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .allele-card {
+      width: 248px;
+      flex-shrink: 0;
+    }
+
+    .allele-canvas {
+      display: block;
+    }
+
+    .allele-legend-swatch {
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .allele-info {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--fg);
+      line-height: 1.4;
+    }
+
+    .allele-info-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .allele-info-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+      color: var(--muted);
+    }
+
+    .allele-info-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .genome-card {
+      margin-top: 12px;
+    }
+
+    .genome-list {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+      white-space: pre;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--fg);
+    }
+
+    .genome-letter {
+      color: #00f;
+    }
+
+    .genome-letter-A {
+      color: #fff;
+    }
+
+    .genome-letter-C {
+      color: #000;
+    }
+
+    .genome-letter-G {
+      color: #ff0;
+    }
+
+    .genome-letter-T {
+      color: #00f;
+    }
   </style>
 </head>
 <body>
