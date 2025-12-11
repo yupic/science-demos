@@ -66,3 +66,72 @@ function generateSuperscript(exp) {
     .map((c) => map[c] ?? c)
     .join('');
 }
+
+function drawAxesOnly(
+  ctx,
+  {
+    xMin,
+    xMax,
+    marginLeft,
+    marginTop,
+    innerWidth,
+    innerHeight,
+    width,
+    height,
+    yTicks = [0, 0.25, 0.5, 0.75, 1],
+    yMax = 1,
+    marginRight = 16,
+    marginBottom = 40,
+    yLabel = 'Вероятность'
+  }
+) {
+  const xMinEdge = xMin - 0.5;
+  const xMaxEdge = xMax + 0.5;
+  const xRange = xMaxEdge - xMinEdge || 1;
+  void height;
+  void marginBottom;
+
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(marginLeft, marginTop + innerHeight);
+  ctx.lineTo(width - marginRight, marginTop + innerHeight);
+  ctx.stroke();
+
+  ctx.fillStyle = '#444';
+  ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  const labelValues = generateXTicks({ min: xMin, max: xMax }, innerWidth);
+  const stepForFormat = labelValues.length >= 2 ? Math.abs(labelValues[1] - labelValues[0]) : 1;
+  const decimals = stepForFormat >= 1 ? 0 : Math.max(0, Math.min(6, Math.ceil(-Math.log10(stepForFormat))));
+  const formatTick = (value) => {
+    if (decimals === 0) return Math.round(value).toString();
+    return Number(value.toFixed(decimals)).toString();
+  };
+
+  for (const value of labelValues) {
+    const x = marginLeft + ((value - xMinEdge) / xRange) * innerWidth;
+    const label = formatTick(value);
+    ctx.fillText(label, x, marginTop + innerHeight + 6);
+  }
+
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (const prob of yTicks) {
+    const y = marginTop + innerHeight - (prob / yMax) * innerHeight;
+    ctx.fillText(`${(prob * 100).toFixed(2)}%`, marginLeft - 8, y);
+  }
+
+  ctx.save();
+  const yLabelX = Math.max(4, marginLeft - 74);
+  ctx.translate(yLabelX, marginTop + innerHeight / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
