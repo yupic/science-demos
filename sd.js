@@ -34,3 +34,9 @@ function generateXTicks(domain, widthPx, minLabelGapPx = 34) {
   }
   return ticks;
 }
+
+function generateYTicks(maxProb) {
+  const maxValue = maxProb > 0 ? maxProb : 1;
+  const ticks = Array.from({ length: 5 }, (_, i) => (maxValue * i) / 4);
+  return { ticks, maxValue };
+}
