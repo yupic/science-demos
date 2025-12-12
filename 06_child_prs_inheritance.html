@@ -142,7 +142,8 @@ License: MIT
       panel: childPanel,
       scaleX,
       xMin,
-      yMax: childYMax
+      yMax: childYMax,
+      marginLeft
     });
 
     drawCurve({
@@ -152,7 +153,8 @@ License: MIT
       panel: populationPanel,
       scaleX,
       xMin,
-      yMax: populationYMax
+      yMax: populationYMax,
+      marginLeft
     });
 
     drawSigmaLines({
@@ -299,7 +301,7 @@ License: MIT
     });
   }
 
-  function drawCurve({ points, color, width, panel, scaleX, xMin, yMax }) {
+  function drawCurve({ points, color, width, panel, scaleX, xMin, yMax, marginLeft }) {
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.beginPath();
