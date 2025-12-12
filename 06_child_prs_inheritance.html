@@ -81,7 +81,7 @@ License: MIT
 
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
-    const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.6, 520));
+    const targetHeight = Math.max(360, Math.min(window.innerHeight * 0.7, 560));
     canvas.style.height = `${targetHeight}px`;
     canvas.width = Math.floor(displayWidth * dpr);
     canvas.height = Math.floor(targetHeight * dpr);
@@ -94,27 +94,13 @@ License: MIT
     const marginLeft = 64;
     const marginRight = 16;
     const marginBottom = 40;
-    const marginTop = 18;
+    const marginTop = 16;
+    const dividerGap = 28;
     const innerWidth = width - marginLeft - marginRight;
-    const innerHeight = height - marginTop - marginBottom;
-
-    drawPopulationBands({
-      marginLeft,
-      marginTop,
-      innerWidth,
-      innerHeight,
-      mean: populationMean,
-      sigma: populationSigma
-    });
-
-    drawChildBands({
-      marginLeft,
-      marginTop,
-      innerWidth,
-      innerHeight,
-      mean: childMean,
-      sigma: childSigma
-    });
+    const innerHeightTotal = height - marginTop - marginBottom;
+    const panelHeight = (innerHeightTotal - dividerGap) / 2;
+    const childPanel = { y: marginTop, height: panelHeight };
+    const populationPanel = { y: marginTop + panelHeight + dividerGap, height: panelHeight };
 
     const sampling = 400;
     const step = (xMax - xMin) / (sampling - 1);
@@ -126,108 +112,164 @@ License: MIT
       childPoints.push({ x, y: normalPdf(x, childMean, childSigma) });
     }
 
-    const maxY = Math.max(
-      ...populationPoints.map((p) => p.y),
-      ...childPoints.map((p) => p.y),
-      0.01
-    );
+    const maxChildY = Math.max(...childPoints.map((p) => p.y), 0.01);
+    const maxPopulationY = Math.max(...populationPoints.map((p) => p.y), 0.01);
 
-    const { ticks: yTicks, maxValue: yMax } = generateYTicks(maxY);
+    const { ticks: childYTicks, maxValue: childYMax } = generateYTicks(maxChildY);
+    const { ticks: populationYTicks, maxValue: populationYMax } = generateYTicks(maxPopulationY);
     const scaleX = innerWidth / (xMax - xMin);
-    const scaleY = innerHeight / yMax;
 
-    function drawCurve(points, color, width = 2) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.beginPath();
-      points.forEach((pt, idx) => {
-        const x = marginLeft + (pt.x - xMin) * scaleX;
-        const y = marginTop + innerHeight - pt.y * scaleY;
-        if (idx === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-    }
+    drawPopulationBands({
+      marginLeft,
+      innerWidth,
+      panel: populationPanel,
+      mean: populationMean,
+      sigma: populationSigma
+    });
 
-    drawCurve(populationPoints, colors.population, 4);
-    drawCurve(childPoints, colors.child, 2);
+    drawPopulationBands({
+      marginLeft,
+      innerWidth,
+      panel: childPanel,
+      mean: childMean,
+      sigma: childSigma
+    });
 
-    drawSigmaLines(
-      [
-        { mean: populationMean, sigma: populationSigma, color: colors.population },
-        { mean: childMean, sigma: childSigma, color: colors.child }
-      ],
-      { xMin, xMax, marginLeft, innerWidth, marginTop, innerHeight }
-    );
+    drawCurve({
+      points: childPoints,
+      color: colors.child,
+      width: 2,
+      panel: childPanel,
+      scaleX,
+      xMin,
+      yMax: childYMax
+    });
+
+    drawCurve({
+      points: populationPoints,
+      color: colors.population,
+      width: 4,
+      panel: populationPanel,
+      scaleX,
+      xMin,
+      yMax: populationYMax
+    });
+
+    drawSigmaLines({
+      mean: childMean,
+      sigma: childSigma,
+      color: colors.child,
+      panel: childPanel,
+      xMin,
+      xMax,
+      marginLeft,
+      innerWidth
+    });
+
+    drawSigmaLines({
+      mean: populationMean,
+      sigma: populationSigma,
+      color: colors.population,
+      panel: populationPanel,
+      xMin,
+      xMax,
+      marginLeft,
+      innerWidth
+    });
 
     drawParentMarkers(
       [
         { value: motherMean, label: 'Мать', color: colors.mother },
         { value: fatherMean, label: 'Отец', color: colors.father }
       ],
-      { xMin, xMax, marginLeft, innerWidth, marginTop, innerHeight }
+      { xMin, xMax, marginLeft, innerWidth, panel: populationPanel }
     );
 
-    drawAxesOnly(ctx, {
+    drawAxes({
       xMin,
       xMax,
       marginLeft,
-      marginTop,
       innerWidth,
-      innerHeight,
-      width,
-      height,
+      panel: childPanel,
       marginRight,
-      marginBottom,
-      yTicks,
-      yMax,
+      yTicks: childYTicks,
+      yMax: childYMax,
+      showXAxis: false,
       yLabel: 'Плотность'
     });
+
+    drawAxes({
+      xMin,
+      xMax,
+      marginLeft,
+      innerWidth,
+      panel: populationPanel,
+      marginRight,
+      yTicks: populationYTicks,
+      yMax: populationYMax,
+      showXAxis: true,
+      yLabel: 'Плотность'
+    });
+
+    const dividerY = marginTop + panelHeight + dividerGap / 2;
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(marginLeft, dividerY);
+    ctx.lineTo(width - marginRight, dividerY);
+    ctx.stroke();
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  function drawSigmaLines(datasets, { xMin, xMax, marginLeft, innerWidth, marginTop, innerHeight }) {
+  function drawSigmaLines({
+    mean,
+    sigma,
+    color,
+    panel,
+    xMin,
+    xMax,
+    marginLeft,
+    innerWidth
+  }) {
     const xRange = xMax - xMin;
-    const lineTop = marginTop + 36;
-    datasets.forEach(({ mean, sigma, color }) => {
-      if (!Number.isFinite(mean) || !Number.isFinite(sigma)) return;
-      const lineColor = color.replace('0.75', '0.95');
-      const levels = [1, 2, 3];
-      ctx.lineWidth = 1;
-      levels.forEach((k) => {
-        const positions = [mean - sigma * k, mean + sigma * k];
-        positions.forEach((actualPos) => {
-          const x = marginLeft + ((actualPos - xMin) / xRange) * innerWidth;
-          if (x < marginLeft || x > marginLeft + innerWidth) return;
-          const sign = actualPos < mean ? '-' : '+';
-          ctx.strokeStyle = lineColor;
-          ctx.setLineDash([4, 4]);
-          ctx.beginPath();
-          ctx.moveTo(x, lineTop);
-          ctx.lineTo(x, marginTop + innerHeight);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.fillStyle = lineColor;
-          ctx.font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          ctx.fillText(`${sign}${k}σ`, x, marginTop + 2);
-          ctx.fillText(actualPos.toFixed(1), x, marginTop + 20);
-        });
-      });
-      const meanX = marginLeft + ((mean - xMin) / xRange) * innerWidth;
-      if (meanX >= marginLeft && meanX <= marginLeft + innerWidth) {
+    const lineTop = panel.y + 32;
+    if (!Number.isFinite(mean) || !Number.isFinite(sigma)) return;
+    const lineColor = color.replace('0.75', '0.95');
+    const levels = [1, 2, 3];
+    ctx.lineWidth = 1;
+    levels.forEach((k) => {
+      const positions = [mean - sigma * k, mean + sigma * k];
+      positions.forEach((actualPos) => {
+        const x = marginLeft + ((actualPos - xMin) / xRange) * innerWidth;
+        if (x < marginLeft || x > marginLeft + innerWidth) return;
+        const sign = actualPos < mean ? '-' : '+';
         ctx.strokeStyle = lineColor;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([2, 6]);
+        ctx.setLineDash([4, 4]);
         ctx.beginPath();
-        ctx.moveTo(meanX, marginTop);
-        ctx.lineTo(meanX, marginTop + innerHeight);
+        ctx.moveTo(x, lineTop);
+        ctx.lineTo(x, panel.y + panel.height);
         ctx.stroke();
         ctx.setLineDash([]);
-      }
+        ctx.fillStyle = lineColor;
+        ctx.font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`${sign}${k}σ`, x, panel.y + 2);
+        ctx.fillText(actualPos.toFixed(1), x, panel.y + 20);
+      });
     });
+    const meanX = marginLeft + ((mean - xMin) / xRange) * innerWidth;
+    if (meanX >= marginLeft && meanX <= marginLeft + innerWidth) {
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([2, 6]);
+      ctx.beginPath();
+      ctx.moveTo(meanX, panel.y);
+      ctx.lineTo(meanX, panel.y + panel.height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
 
   motherInput.addEventListener('input', draw);
@@ -235,7 +277,7 @@ License: MIT
 
   draw();
 
-  function drawPopulationBands({ marginLeft, marginTop, innerWidth, innerHeight, mean, sigma }) {
+  function drawPopulationBands({ marginLeft, innerWidth, panel, mean, sigma }) {
     const bands = [
       { from: -Infinity, to: mean - 3 * sigma, color: '#ffe3e6' },
       { from: mean + 3 * sigma, to: Infinity, color: '#ffe3e6' },
@@ -253,36 +295,26 @@ License: MIT
       const xStart = marginLeft + ((clampedFrom - xMin) / (xMax - xMin)) * innerWidth;
       const width = ((clampedTo - clampedFrom) / (xMax - xMin)) * innerWidth;
       ctx.fillStyle = color;
-      ctx.fillRect(xStart, marginTop, width, innerHeight);
+      ctx.fillRect(xStart, panel.y, width, panel.height);
     });
   }
 
-  function drawChildBands({ marginLeft, marginTop, innerWidth, innerHeight, mean, sigma }) {
-    const toX = (value) => marginLeft + ((value - xMin) / (xMax - xMin)) * innerWidth;
-    const bands = [
-      { from: -Infinity, to: mean - 3 * sigma, alpha: 0.06 },
-      { from: mean + 3 * sigma, to: Infinity, alpha: 0.06 },
-      { from: mean - 3 * sigma, to: mean - 2 * sigma, alpha: 0.1 },
-      { from: mean + 2 * sigma, to: mean + 3 * sigma, alpha: 0.1 },
-      { from: mean - 2 * sigma, to: mean - 1 * sigma, alpha: 0.14 },
-      { from: mean + 1 * sigma, to: mean + 2 * sigma, alpha: 0.14 },
-      { from: mean - 1 * sigma, to: mean + 1 * sigma, alpha: 0.18 }
-    ];
-
-    bands.forEach(({ from, to, alpha }) => {
-      const clampedFrom = Math.max(from, xMin);
-      const clampedTo = Math.min(to, xMax);
-      if (clampedTo <= clampedFrom) return;
-      const xStart = toX(clampedFrom);
-      const width = ((clampedTo - clampedFrom) / (xMax - xMin)) * innerWidth;
-      ctx.fillStyle = `rgba(227, 52, 47, ${alpha})`;
-      ctx.fillRect(xStart, marginTop, width, innerHeight);
+  function drawCurve({ points, color, width, panel, scaleX, xMin, yMax }) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    points.forEach((pt, idx) => {
+      const x = marginLeft + (pt.x - xMin) * scaleX;
+      const y = panel.y + panel.height - (pt.y / yMax) * panel.height;
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
+    ctx.stroke();
   }
 
-  function drawParentMarkers(parents, { xMin, xMax, marginLeft, innerWidth, marginTop, innerHeight }) {
+  function drawParentMarkers(parents, { xMin, xMax, marginLeft, innerWidth, panel }) {
     const xRange = xMax - xMin;
-    const labelY = marginTop + innerHeight * 0.08;
+    const labelY = panel.y + panel.height * 0.08;
     parents.forEach(({ value, label, color }) => {
       if (!Number.isFinite(value)) return;
       const x = marginLeft + ((value - xMin) / xRange) * innerWidth;
@@ -291,8 +323,8 @@ License: MIT
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 6]);
       ctx.beginPath();
-      ctx.moveTo(x, marginTop);
-      ctx.lineTo(x, marginTop + innerHeight);
+      ctx.moveTo(x, panel.y);
+      ctx.lineTo(x, panel.y + panel.height);
       ctx.stroke();
       ctx.setLineDash([]);
 
@@ -302,6 +334,84 @@ License: MIT
       ctx.textBaseline = 'bottom';
       ctx.fillText(`${label}: ${value.toFixed(0)}`, x, labelY);
     });
+  }
+
+  function drawAxes({
+    xMin,
+    xMax,
+    marginLeft,
+    innerWidth,
+    panel,
+    marginRight,
+    yTicks,
+    yMax,
+    showXAxis,
+    yLabel
+  }) {
+    const y0 = panel.y + panel.height;
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(marginLeft, y0);
+    ctx.lineTo(marginLeft, panel.y);
+    ctx.stroke();
+
+    ctx.fillStyle = '#444';
+    ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    yTicks.forEach((tick) => {
+      const y = panel.y + panel.height - (tick / yMax) * panel.height;
+      ctx.beginPath();
+      ctx.moveTo(marginLeft - 4, y);
+      ctx.lineTo(marginLeft, y);
+      ctx.stroke();
+      ctx.fillText(tick.toFixed(3), marginLeft - 6, y);
+    });
+
+    ctx.save();
+    ctx.translate(20, panel.y + panel.height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(yLabel, 0, 0);
+    ctx.restore();
+
+    if (showXAxis) {
+      const xMinEdge = xMin - 0.5;
+      const xMaxEdge = xMax + 0.5;
+      const xRange = xMaxEdge - xMinEdge || 1;
+      const xAxisY = panel.y + panel.height;
+
+      ctx.strokeStyle = '#ccc';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(marginLeft, xAxisY);
+      ctx.lineTo(marginLeft + innerWidth, xAxisY);
+      ctx.stroke();
+
+      ctx.fillStyle = '#444';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      const labelValues = generateXTicks({ min: xMin, max: xMax }, innerWidth);
+      const stepForFormat = labelValues.length >= 2 ? Math.abs(labelValues[1] - labelValues[0]) : 1;
+      const decimals = stepForFormat >= 1 ? 0 : Math.max(0, Math.min(6, Math.ceil(-Math.log10(stepForFormat))));
+      const formatTick = (value) => {
+        if (decimals === 0) return Math.round(value).toString();
+        return Number(value.toFixed(decimals)).toString();
+      };
+
+      for (const value of labelValues) {
+        const x = marginLeft + ((value - xMinEdge) / xRange) * innerWidth;
+        const label = formatTick(value);
+        ctx.beginPath();
+        ctx.moveTo(x, xAxisY);
+        ctx.lineTo(x, xAxisY + 4);
+        ctx.stroke();
+        ctx.fillText(label, x, xAxisY + 6);
+      }
+    }
   }
 </script>
 </body>
