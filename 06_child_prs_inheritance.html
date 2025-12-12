@@ -1,0 +1,214 @@
+<!--
+Interactive science demo.
+Part of the "science-demos" project.
+
+GitHub: https://github.com/yupic/science-demos
+YouTube: https://www.youtube.com/@autism-ru
+Telegram: https://t.me/autism_science
+License: MIT
+-->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Наследование PRS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="sd.js"></script>
+</head>
+<body>
+<div class="container">
+  <h1>Как PRS ребёнка зависит от родителей</h1>
+  <p class="desc">Нормальные распределения PRS для популяции и гипотетического ребёнка. Изменяйте PRS родителей, чтобы увидеть смещение среднего ребёнка.</p>
+  <div class="controls">
+    <label class="slider-label">Мать:
+      <input type="range" id="motherInput" min="60" max="140" step="1" value="100" />
+      <span id="motherValue" class="slider-value">100</span>
+    </label>
+    <label class="slider-label">Отец:
+      <input type="range" id="fatherInput" min="60" max="140" step="1" value="100" />
+      <span id="fatherValue" class="slider-value">100</span>
+    </label>
+  </div>
+  <div class="canvas-frame">
+    <canvas id="prsCanvas"></canvas>
+  </div>
+</div>
+<footer class="footer">
+  © autism_science • MIT License •
+  <a href="https://github.com/yupic/science-demos" target="_blank" rel="noopener">GitHub</a> •
+  <a href="https://www.youtube.com/@autism-ru" target="_blank" rel="noopener">YouTube</a> •
+  <a href="https://t.me/autism_science" target="_blank" rel="noopener">Telegram</a>
+</footer>
+<script>
+  const canvas = document.getElementById('prsCanvas');
+  const ctx = canvas.getContext('2d');
+  const motherInput = document.getElementById('motherInput');
+  const fatherInput = document.getElementById('fatherInput');
+  const motherValue = document.getElementById('motherValue');
+  const fatherValue = document.getElementById('fatherValue');
+
+  const populationMean = 100;
+  const populationSigma = 15;
+  const childSigma = Math.sqrt(0.5) * populationSigma;
+  const xMin = 20;
+  const xMax = 180;
+
+  const colors = {
+    population: 'rgba(44, 123, 229, 0.75)',
+    child: 'rgba(227, 52, 47, 0.75)'
+  };
+
+  function normalPdf(x, mean, sigma) {
+    const coef = 1 / (sigma * Math.sqrt(2 * Math.PI));
+    const z = (x - mean) / sigma;
+    return coef * Math.exp(-0.5 * z * z);
+  }
+
+  function updateLabels() {
+    motherValue.textContent = motherInput.value;
+    fatherValue.textContent = fatherInput.value;
+  }
+
+  function draw() {
+    const motherMean = Number(motherInput.value);
+    const fatherMean = Number(fatherInput.value);
+    const childMean = (motherMean + fatherMean) / 2;
+
+    updateLabels();
+
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
+    const targetHeight = Math.max(280, Math.min(window.innerHeight * 0.6, 520));
+    canvas.style.height = `${targetHeight}px`;
+    canvas.width = Math.floor(displayWidth * dpr);
+    canvas.height = Math.floor(targetHeight * dpr);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+    const marginLeft = 64;
+    const marginRight = 16;
+    const marginBottom = 40;
+    const marginTop = 18;
+    const innerWidth = width - marginLeft - marginRight;
+    const innerHeight = height - marginTop - marginBottom;
+
+    ctx.fillStyle = '#f8f9fc';
+    ctx.fillRect(marginLeft, marginTop, innerWidth, innerHeight);
+
+    const sampling = 400;
+    const step = (xMax - xMin) / (sampling - 1);
+    const populationPoints = [];
+    const childPoints = [];
+    for (let i = 0; i < sampling; i++) {
+      const x = xMin + step * i;
+      populationPoints.push({ x, y: normalPdf(x, populationMean, populationSigma) });
+      childPoints.push({ x, y: normalPdf(x, childMean, childSigma) });
+    }
+
+    const maxY = Math.max(
+      ...populationPoints.map((p) => p.y),
+      ...childPoints.map((p) => p.y),
+      0.01
+    );
+
+    const { ticks: yTicks, maxValue: yMax } = generateYTicks(maxY);
+    const scaleX = innerWidth / (xMax - xMin);
+    const scaleY = innerHeight / yMax;
+
+    function drawCurve(points, color) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      points.forEach((pt, idx) => {
+        const x = marginLeft + (pt.x - xMin) * scaleX;
+        const y = marginTop + innerHeight - pt.y * scaleY;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    drawCurve(populationPoints, colors.population);
+    drawCurve(childPoints, colors.child);
+
+    drawSigmaLines(
+      [
+        { mean: populationMean, sigma: populationSigma, color: colors.population },
+        { mean: childMean, sigma: childSigma, color: colors.child }
+      ],
+      { xMin, xMax, marginLeft, innerWidth, marginTop, innerHeight }
+    );
+
+    drawAxesOnly(ctx, {
+      xMin,
+      xMax,
+      marginLeft,
+      marginTop,
+      innerWidth,
+      innerHeight,
+      width,
+      height,
+      marginRight,
+      marginBottom,
+      yTicks,
+      yMax,
+      yLabel: 'Плотность'
+    });
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  function drawSigmaLines(datasets, { xMin, xMax, marginLeft, innerWidth, marginTop, innerHeight }) {
+    const xRange = xMax - xMin;
+    const lineTop = marginTop + 36;
+    datasets.forEach(({ mean, sigma, color }) => {
+      if (!Number.isFinite(mean) || !Number.isFinite(sigma)) return;
+      const lineColor = color.replace('0.75', '0.95');
+      const levels = [1, 2, 3];
+      ctx.lineWidth = 1;
+      levels.forEach((k) => {
+        const positions = [mean - sigma * k, mean + sigma * k];
+        positions.forEach((actualPos) => {
+          const x = marginLeft + ((actualPos - xMin) / xRange) * innerWidth;
+          if (x < marginLeft || x > marginLeft + innerWidth) return;
+          const sign = actualPos < mean ? '-' : '+';
+          ctx.strokeStyle = lineColor;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x, lineTop);
+          ctx.lineTo(x, marginTop + innerHeight);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#222';
+          ctx.font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(`${sign}${k}σ`, x, marginTop + 2);
+          ctx.fillText(actualPos.toFixed(1), x, marginTop + 20);
+        });
+      });
+      const meanX = marginLeft + ((mean - xMin) / xRange) * innerWidth;
+      if (meanX >= marginLeft && meanX <= marginLeft + innerWidth) {
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([2, 6]);
+        ctx.beginPath();
+        ctx.moveTo(meanX, marginTop);
+        ctx.lineTo(meanX, marginTop + innerHeight);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    });
+  }
+
+  motherInput.addEventListener('input', draw);
+  fatherInput.addEventListener('input', draw);
+
+  draw();
+</script>
+</body>
+</html>
