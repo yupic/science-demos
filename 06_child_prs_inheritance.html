@@ -150,6 +150,26 @@ License: MIT
       sigma: childSigma
     });
 
+    drawBandProbabilities({
+      mean: populationMean,
+      sigma: populationSigma,
+      panel: populationPanel,
+      marginLeft,
+      innerWidth,
+      xMin,
+      xMax
+    });
+
+    drawBandProbabilities({
+      mean: childMean,
+      sigma: childSigma,
+      panel: childPanel,
+      marginLeft,
+      innerWidth,
+      xMin,
+      xMax
+    });
+
     drawCurve({
       points: childPoints,
       color: colors.child,
@@ -343,11 +363,14 @@ License: MIT
 
   function drawParentMarkers(parents, { xMin, xMax, marginLeft, innerWidth, panel }) {
     const xRange = xMax - xMin;
-    const labelY = Math.max(10, panel.y - 6);
-    parents.forEach(({ value, label, color }) => {
-      if (!Number.isFinite(value)) return;
-      const x = marginLeft + ((value - xMin) / xRange) * innerWidth;
-      if (x < marginLeft || x > marginLeft + innerWidth) return;
+    const markers = parents
+      .map(({ value, label, color }) => {
+        const x = marginLeft + ((value - xMin) / xRange) * innerWidth;
+        return { value, label, color, x };
+      })
+      .filter(({ value, x }) => Number.isFinite(value) && x >= marginLeft && x <= marginLeft + innerWidth);
+
+    markers.forEach(({ x, color }) => {
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 6]);
@@ -356,12 +379,37 @@ License: MIT
       ctx.lineTo(x, panel.y + panel.height);
       ctx.stroke();
       ctx.setLineDash([]);
+    });
 
-      ctx.fillStyle = color;
-      ctx.font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(`${label}: ${value.toFixed(0)}`, x, labelY);
+    const proximity = 10;
+    const groups = [];
+    markers.forEach((marker) => {
+      const found = groups.find((g) => Math.abs(g.x - marker.x) <= proximity);
+      if (found) {
+        found.items.push(marker);
+        found.x = (found.x * (found.items.length - 1) + marker.x) / found.items.length;
+      } else {
+        groups.push({ x: marker.x, items: [marker] });
+      }
+    });
+
+    const labelY = Math.max(14, panel.y - 6);
+    const yStep = 18;
+    const xShift = 12;
+
+    groups.forEach((group) => {
+      group.items
+        .slice()
+        .sort((a, b) => a.label.localeCompare(b.label))
+        .forEach((item, idx, arr) => {
+          const y = labelY - idx * yStep;
+          const shift = arr.length > 1 ? (idx === 0 ? -xShift : xShift) : 0;
+          ctx.fillStyle = item.color;
+          ctx.font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(`${item.label}: ${item.value.toFixed(0)}`, group.x + shift, y);
+        });
     });
   }
 
@@ -476,6 +524,42 @@ License: MIT
         ctx.stroke();
         ctx.fillText(label, x, xAxisY + 6);
       }
+    }
+  }
+
+  function drawBandProbabilities({ mean, sigma, panel, marginLeft, innerWidth, xMin, xMax }) {
+    const boundaries = [
+      -Infinity,
+      mean - 3 * sigma,
+      mean - 2 * sigma,
+      mean - 1 * sigma,
+      mean,
+      mean + 1 * sigma,
+      mean + 2 * sigma,
+      mean + 3 * sigma,
+      Infinity
+    ];
+
+    const xRange = xMax - xMin;
+    const centerY = panel.y + panel.height / 2;
+    ctx.fillStyle = 'rgba(60, 60, 60, 0.8)';
+    ctx.font = '30px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let i = 0; i < boundaries.length - 1; i++) {
+      const left = boundaries[i];
+      const right = boundaries[i + 1];
+      const leftProb = left === -Infinity ? 0 : normalCdf(left, mean, sigma);
+      const rightProb = right === Infinity ? 1 : normalCdf(right, mean, sigma);
+      const prob = rightProb - leftProb;
+
+      const clampedLeft = Math.max(left, xMin);
+      const clampedRight = Math.min(right, xMax);
+      if (clampedRight <= clampedLeft) continue;
+      const centerXValue = clampedLeft + (clampedRight - clampedLeft) / 2;
+      const centerX = marginLeft + ((centerXValue - xMin) / xRange) * innerWidth;
+      ctx.fillText(`${(prob * 100).toFixed(2)}%`, centerX, centerY);
     }
   }
 </script>
