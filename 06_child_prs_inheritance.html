@@ -110,7 +110,7 @@ License: MIT
     const marginRight = 16;
     const marginBottom = 40;
     const marginTop = 16;
-    const dividerGap = 28;
+    const dividerGap = 28 + marginTop;
     const innerWidth = width - marginLeft - marginRight;
     const innerHeightTotal = height - marginTop - marginBottom;
     const panelHeight = (innerHeightTotal - dividerGap) / 2;
@@ -385,21 +385,19 @@ License: MIT
     const xRange = xMax - xMin;
     const toCanvasX = (val) => marginLeft + ((val - xMin) / xRange) * innerWidth;
 
-    const intervals = [
-      { from: xMin, to: clamp(a), value: probA },
-      { from: clamp(a), to: clamp(b), value: probB }
+    const labels = [
+      { x: clamp(a), value: probA },
+      { x: clamp(b), value: probB }
     ];
 
     ctx.fillStyle = '#444';
     ctx.font = '13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
+    ctx.textBaseline = 'top';
 
-    const y = panel.y + panel.height - 12;
-    intervals.forEach(({ from, to, value }) => {
-      if (to <= from) return;
-      const center = (from + to) / 2;
-      ctx.fillText(`${(value * 100).toFixed(2)}%`, toCanvasX(center), y);
+    const y = panel.y + panel.height + 6;
+    labels.forEach(({ x, value }) => {
+      ctx.fillText(`${(value * 100).toFixed(2)}%`, toCanvasX(x), y);
     });
   }
 
@@ -433,7 +431,7 @@ License: MIT
       ctx.moveTo(marginLeft - 4, y);
       ctx.lineTo(marginLeft, y);
       ctx.stroke();
-      ctx.fillText(tick.toFixed(3), marginLeft - 6, y);
+      ctx.fillText(`${(tick * 100).toFixed(2)}%`, marginLeft - 6, y);
     });
 
     ctx.save();
