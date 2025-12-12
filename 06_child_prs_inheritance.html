@@ -282,7 +282,7 @@ License: MIT
     innerWidth
   }) {
     const xRange = xMax - xMin;
-    const lineTop = panel.y + 32;
+    const lineTop = panel.y + 36;
     if (!Number.isFinite(mean) || !Number.isFinite(sigma)) return;
     const lineColor = color.replace('0.75', '0.95');
     const levels = [1, 2, 3];
@@ -381,35 +381,48 @@ License: MIT
       ctx.setLineDash([]);
     });
 
-    const proximity = 10;
-    const groups = [];
-    markers.forEach((marker) => {
-      const found = groups.find((g) => Math.abs(g.x - marker.x) <= proximity);
-      if (found) {
-        found.items.push(marker);
-        found.x = (found.x * (found.items.length - 1) + marker.x) / found.items.length;
-      } else {
-        groups.push({ x: marker.x, items: [marker] });
-      }
+    if (!markers.length) return;
+
+    const labelY = Math.max(16, panel.y - 4);
+    const gap = 8;
+    const font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+
+    const items = markers.map((marker) => {
+      const text = `${marker.label}: ${marker.value.toFixed(0)}`;
+      const metrics = ctx.measureText(text);
+      const width = metrics.width;
+      const height = 16;
+      return { ...marker, text, width, height };
     });
 
-    const labelY = Math.max(14, panel.y - 6);
-    const yStep = 18;
-    const xShift = 12;
+    const overlaps = (a, b) => a.x - a.width / 2 <= b.x + b.width / 2 && b.x - b.width / 2 <= a.x + a.width / 2;
 
-    groups.forEach((group) => {
-      group.items
+    let positions = items.map((item) => ({ ...item, drawX: item.x, drawY: labelY }));
+
+    if (positions.length >= 2 && overlaps(positions[0], positions[1])) {
+      const ordered = positions
         .slice()
-        .sort((a, b) => a.label.localeCompare(b.label))
-        .forEach((item, idx, arr) => {
-          const y = labelY - idx * yStep;
-          const shift = arr.length > 1 ? (idx === 0 ? -xShift : xShift) : 0;
-          ctx.fillStyle = item.color;
-          ctx.font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          ctx.fillText(`${item.label}: ${item.value.toFixed(0)}`, group.x + shift, y);
+        .sort((a, b) => {
+          if (a.value === b.value) {
+            if (a.label === b.label) return 0;
+            return a.label === 'Мать' ? -1 : 1;
+          }
+          return a.value - b.value;
         });
+
+      const totalWidth = ordered[0].width + gap + ordered[1].width;
+      const center = (ordered[0].x + ordered[1].x) / 2;
+      ordered[0].drawX = center - totalWidth / 2 + ordered[0].width / 2;
+      ordered[1].drawX = center + totalWidth / 2 - ordered[1].width / 2;
+      positions = ordered;
+    }
+
+    positions.forEach((item) => {
+      ctx.fillStyle = item.color;
+      ctx.fillText(item.text, item.drawX, item.drawY);
     });
   }
 
@@ -483,7 +496,7 @@ License: MIT
     });
 
     ctx.save();
-    ctx.translate(20, panel.y + panel.height / 2);
+    ctx.translate(10, panel.y + panel.height / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -542,8 +555,8 @@ License: MIT
 
     const xRange = xMax - xMin;
     const centerY = panel.y + panel.height / 2;
-    ctx.fillStyle = 'rgba(60, 60, 60, 0.8)';
-    ctx.font = '30px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.fillStyle = 'rgba(60, 60, 60, 0.3)';
+    ctx.font = '24px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
