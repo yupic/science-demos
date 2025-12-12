@@ -51,8 +51,8 @@ License: MIT
   const populationMean = 100;
   const populationSigma = 15;
   const childSigma = Math.sqrt(0.5) * populationSigma;
-  const xMin = 20;
-  const xMax = 180;
+  const xMin = 40;
+  const xMax = 160;
 
   const colors = {
     population: 'rgba(44, 123, 229, 0.75)',
@@ -96,8 +96,14 @@ License: MIT
     const innerWidth = width - marginLeft - marginRight;
     const innerHeight = height - marginTop - marginBottom;
 
-    ctx.fillStyle = '#f8f9fc';
-    ctx.fillRect(marginLeft, marginTop, innerWidth, innerHeight);
+    drawPopulationBands({
+      marginLeft,
+      marginTop,
+      innerWidth,
+      innerHeight,
+      mean: populationMean,
+      sigma: populationSigma
+    });
 
     const sampling = 400;
     const step = (xMax - xMin) / (sampling - 1);
@@ -119,9 +125,9 @@ License: MIT
     const scaleX = innerWidth / (xMax - xMin);
     const scaleY = innerHeight / yMax;
 
-    function drawCurve(points, color) {
+    function drawCurve(points, color, width = 2) {
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = width;
       ctx.beginPath();
       points.forEach((pt, idx) => {
         const x = marginLeft + (pt.x - xMin) * scaleX;
@@ -132,8 +138,8 @@ License: MIT
       ctx.stroke();
     }
 
-    drawCurve(populationPoints, colors.population);
-    drawCurve(childPoints, colors.child);
+    drawCurve(populationPoints, colors.population, 4);
+    drawCurve(childPoints, colors.child, 2);
 
     drawSigmaLines(
       [
@@ -183,7 +189,7 @@ License: MIT
           ctx.lineTo(x, marginTop + innerHeight);
           ctx.stroke();
           ctx.setLineDash([]);
-          ctx.fillStyle = '#222';
+          ctx.fillStyle = lineColor;
           ctx.font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
@@ -209,6 +215,28 @@ License: MIT
   fatherInput.addEventListener('input', draw);
 
   draw();
+
+  function drawPopulationBands({ marginLeft, marginTop, innerWidth, innerHeight, mean, sigma }) {
+    const bands = [
+      { from: -Infinity, to: mean - 3 * sigma, color: '#ffe3e6' },
+      { from: mean + 3 * sigma, to: Infinity, color: '#ffe3e6' },
+      { from: mean - 3 * sigma, to: mean - 2 * sigma, color: '#ffeacc' },
+      { from: mean + 2 * sigma, to: mean + 3 * sigma, color: '#ffeacc' },
+      { from: mean - 2 * sigma, to: mean - 1 * sigma, color: '#eaf6e5' },
+      { from: mean + 1 * sigma, to: mean + 2 * sigma, color: '#eaf6e5' },
+      { from: mean - 1 * sigma, to: mean + 1 * sigma, color: '#e3ecff' }
+    ];
+
+    bands.forEach(({ from, to, color }) => {
+      const clampedFrom = Math.max(from, xMin);
+      const clampedTo = Math.min(to, xMax);
+      if (clampedTo <= clampedFrom) return;
+      const xStart = marginLeft + ((clampedFrom - xMin) / (xMax - xMin)) * innerWidth;
+      const width = ((clampedTo - clampedFrom) / (xMax - xMin)) * innerWidth;
+      ctx.fillStyle = color;
+      ctx.fillRect(xStart, marginTop, width, innerHeight);
+    });
+  }
 </script>
 </body>
 </html>
