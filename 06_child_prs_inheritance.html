@@ -56,7 +56,9 @@ License: MIT
 
   const colors = {
     population: 'rgba(44, 123, 229, 0.75)',
-    child: 'rgba(227, 52, 47, 0.75)'
+    child: 'rgba(227, 52, 47, 0.75)',
+    mother: 'rgba(147, 51, 234, 0.9)',
+    father: 'rgba(16, 185, 129, 0.9)'
   };
 
   function normalPdf(x, mean, sigma) {
@@ -105,6 +107,15 @@ License: MIT
       sigma: populationSigma
     });
 
+    drawChildBands({
+      marginLeft,
+      marginTop,
+      innerWidth,
+      innerHeight,
+      mean: childMean,
+      sigma: childSigma
+    });
+
     const sampling = 400;
     const step = (xMax - xMin) / (sampling - 1);
     const populationPoints = [];
@@ -145,6 +156,14 @@ License: MIT
       [
         { mean: populationMean, sigma: populationSigma, color: colors.population },
         { mean: childMean, sigma: childSigma, color: colors.child }
+      ],
+      { xMin, xMax, marginLeft, innerWidth, marginTop, innerHeight }
+    );
+
+    drawParentMarkers(
+      [
+        { value: motherMean, label: 'Мать', color: colors.mother },
+        { value: fatherMean, label: 'Отец', color: colors.father }
       ],
       { xMin, xMax, marginLeft, innerWidth, marginTop, innerHeight }
     );
@@ -235,6 +254,53 @@ License: MIT
       const width = ((clampedTo - clampedFrom) / (xMax - xMin)) * innerWidth;
       ctx.fillStyle = color;
       ctx.fillRect(xStart, marginTop, width, innerHeight);
+    });
+  }
+
+  function drawChildBands({ marginLeft, marginTop, innerWidth, innerHeight, mean, sigma }) {
+    const toX = (value) => marginLeft + ((value - xMin) / (xMax - xMin)) * innerWidth;
+    const bands = [
+      { from: -Infinity, to: mean - 3 * sigma, alpha: 0.06 },
+      { from: mean + 3 * sigma, to: Infinity, alpha: 0.06 },
+      { from: mean - 3 * sigma, to: mean - 2 * sigma, alpha: 0.1 },
+      { from: mean + 2 * sigma, to: mean + 3 * sigma, alpha: 0.1 },
+      { from: mean - 2 * sigma, to: mean - 1 * sigma, alpha: 0.14 },
+      { from: mean + 1 * sigma, to: mean + 2 * sigma, alpha: 0.14 },
+      { from: mean - 1 * sigma, to: mean + 1 * sigma, alpha: 0.18 }
+    ];
+
+    bands.forEach(({ from, to, alpha }) => {
+      const clampedFrom = Math.max(from, xMin);
+      const clampedTo = Math.min(to, xMax);
+      if (clampedTo <= clampedFrom) return;
+      const xStart = toX(clampedFrom);
+      const width = ((clampedTo - clampedFrom) / (xMax - xMin)) * innerWidth;
+      ctx.fillStyle = `rgba(227, 52, 47, ${alpha})`;
+      ctx.fillRect(xStart, marginTop, width, innerHeight);
+    });
+  }
+
+  function drawParentMarkers(parents, { xMin, xMax, marginLeft, innerWidth, marginTop, innerHeight }) {
+    const xRange = xMax - xMin;
+    const labelY = marginTop + innerHeight * 0.08;
+    parents.forEach(({ value, label, color }) => {
+      if (!Number.isFinite(value)) return;
+      const x = marginLeft + ((value - xMin) / xRange) * innerWidth;
+      if (x < marginLeft || x > marginLeft + innerWidth) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(x, marginTop);
+      ctx.lineTo(x, marginTop + innerHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = color;
+      ctx.font = '15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`${label}: ${value.toFixed(0)}`, x, labelY);
     });
   }
 </script>
