@@ -591,9 +591,7 @@ License: MIT
     ctx.restore();
 
     if (showXAxis) {
-      const xMinEdge = xMin - 0.5;
-      const xMaxEdge = xMax + 0.5;
-      const xRange = xMaxEdge - xMinEdge || 1;
+      const xRange = xMax - xMin || 1;
       const xAxisY = panel.y + panel.height;
 
       ctx.strokeStyle = '#ccc';
@@ -616,7 +614,7 @@ License: MIT
       };
 
       for (const value of labelValues) {
-        const x = marginLeft + ((value - xMinEdge) / xRange) * innerWidth;
+        const x = marginLeft + ((value - xMin) / xRange) * innerWidth;
         const label = formatTick(value);
         ctx.beginPath();
         ctx.moveTo(x, xAxisY);
