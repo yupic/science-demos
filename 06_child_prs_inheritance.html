@@ -158,7 +158,7 @@ License: MIT
   }
 
   function updateLabels(step) {
-    const sliderStep = step ?? Number(motherInput.step) || 1;
+    const sliderStep = step ?? (Number(motherInput.step) || 1);
     motherValue.textContent = formatFromStep(motherInput.value, sliderStep);
     fatherValue.textContent = formatFromStep(fatherInput.value, sliderStep);
   }
