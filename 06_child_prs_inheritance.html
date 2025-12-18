@@ -21,6 +21,12 @@ License: MIT
   <h1>Как PRS ребёнка зависит от родителей</h1>
   <p class="desc">Нормальные распределения PRS для популяции и гипотетического ребёнка. Изменяйте PRS родителей, чтобы увидеть смещение среднего ребёнка.</p>
   <div class="controls">
+    <label class="slider-label">Математическое ожидание:
+      <input type="number" id="meanInput" step="0.1" value="100" />
+    </label>
+    <label class="slider-label">Стандартное отклонение:
+      <input type="number" id="sdInput" step="0.1" value="15" min="0.0001" />
+    </label>
     <label class="slider-label">Мать:
       <input type="range" id="motherInput" min="60" max="140" step="1" value="100" />
       <span id="motherValue" class="slider-value">100</span>
@@ -43,16 +49,12 @@ License: MIT
 <script>
   const canvas = document.getElementById('prsCanvas');
   const ctx = canvas.getContext('2d');
+  const meanInput = document.getElementById('meanInput');
+  const sdInput = document.getElementById('sdInput');
   const motherInput = document.getElementById('motherInput');
   const fatherInput = document.getElementById('fatherInput');
   const motherValue = document.getElementById('motherValue');
   const fatherValue = document.getElementById('fatherValue');
-
-  const populationMean = 100;
-  const populationSigma = 15;
-  const childSigma = Math.sqrt(0.5) * populationSigma;
-  const xMin = 40;
-  const xMax = 160;
 
   const colors = {
     population: 'rgba(44, 123, 229, 0.75)',
@@ -82,17 +84,95 @@ License: MIT
     return 0.5 * (1 + erfValue);
   }
 
-  function updateLabels() {
-    motherValue.textContent = motherInput.value;
-    fatherValue.textContent = fatherInput.value;
+  function formatFromStep(value, step) {
+    if (!Number.isFinite(step) || step <= 0) return value.toFixed(0);
+    const decimals = step >= 1 ? 0 : Math.max(0, Math.min(6, Math.ceil(-Math.log10(step))));
+    return Number(value).toFixed(decimals);
+  }
+
+  function getPopulationMean() {
+    const val = Number(meanInput.value);
+    if (!Number.isFinite(val)) {
+      meanInput.value = 100;
+      return 100;
+    }
+    return val;
+  }
+
+  function getPopulationSigma() {
+    const val = Number(sdInput.value);
+    if (!Number.isFinite(val) || val <= 0) {
+      sdInput.value = 15;
+      return 15;
+    }
+    return val;
+  }
+
+  function computeSliderStep(sigma) {
+    const range = 6 * sigma;
+    if (!Number.isFinite(range) || range <= 0) return 1;
+    const candidates = [];
+    for (let exp = -10; exp <= 10; exp++) {
+      const step = 10 ** exp;
+      const divisions = range / step;
+      if (divisions >= 10 && divisions <= 200) {
+        candidates.push({ step, divisions });
+      }
+    }
+
+    if (candidates.length) {
+      return candidates.reduce(
+        (best, current) => {
+          const score = Math.abs(current.divisions - 100);
+          if (score < best.score) return { step: current.step, score };
+          return best;
+        },
+        { step: candidates[0].step, score: Math.abs(candidates[0].divisions - 100) }
+      ).step;
+    }
+
+    const approx = range / 100;
+    const exp = Math.round(Math.log10(Math.max(approx, 1e-8)));
+    return 10 ** exp;
+  }
+
+  function updateSliderBounds() {
+    const mean = getPopulationMean();
+    const sigma = getPopulationSigma();
+    const min = mean - 3 * sigma;
+    const max = mean + 3 * sigma;
+    const step = computeSliderStep(sigma);
+
+    [motherInput, fatherInput].forEach((input) => {
+      input.min = min;
+      input.max = max;
+      input.step = step;
+      const current = Number(input.value);
+      let value = current;
+      if (!Number.isFinite(value)) value = mean;
+      value = Math.min(Math.max(value, min), max);
+      input.value = value;
+    });
+
+    return { mean, sigma, step };
+  }
+
+  function updateLabels(step) {
+    const sliderStep = step ?? Number(motherInput.step) || 1;
+    motherValue.textContent = formatFromStep(motherInput.value, sliderStep);
+    fatherValue.textContent = formatFromStep(fatherInput.value, sliderStep);
   }
 
   function draw() {
+    const { mean: populationMean, sigma: populationSigma, step: sliderStep } = updateSliderBounds();
     const motherMean = Number(motherInput.value);
     const fatherMean = Number(fatherInput.value);
     const childMean = (motherMean + fatherMean) / 2;
+    const childSigma = Math.sqrt(0.5) * populationSigma;
+    const xMin = populationMean - 4 * populationSigma;
+    const xMax = populationMean + 4 * populationSigma;
 
-    updateLabels();
+    updateLabels(sliderStep);
 
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
@@ -139,7 +219,9 @@ License: MIT
       innerWidth,
       panel: populationPanel,
       mean: populationMean,
-      sigma: populationSigma
+      sigma: populationSigma,
+      xMin,
+      xMax
     });
 
     drawPopulationBands({
@@ -147,7 +229,9 @@ License: MIT
       innerWidth,
       panel: childPanel,
       mean: childMean,
-      sigma: childSigma
+      sigma: childSigma,
+      xMin,
+      xMax
     });
 
     drawBandProbabilities({
@@ -231,7 +315,7 @@ License: MIT
         { value: motherMean, label: 'Мать', color: colors.mother },
         { value: fatherMean, label: 'Отец', color: colors.father }
       ],
-      { xMin, xMax, marginLeft, innerWidth, panel: populationPanel }
+      { xMin, xMax, marginLeft, innerWidth, panel: populationPanel, step: sliderStep }
     );
 
     drawAxes({
@@ -323,10 +407,12 @@ License: MIT
 
   motherInput.addEventListener('input', draw);
   fatherInput.addEventListener('input', draw);
+  meanInput.addEventListener('input', draw);
+  sdInput.addEventListener('input', draw);
 
   draw();
 
-  function drawPopulationBands({ marginLeft, innerWidth, panel, mean, sigma }) {
+  function drawPopulationBands({ marginLeft, innerWidth, panel, mean, sigma, xMin, xMax }) {
     const bands = [
       { from: -Infinity, to: mean - 3 * sigma, color: '#ffe3e6' },
       { from: mean + 3 * sigma, to: Infinity, color: '#ffe3e6' },
@@ -361,7 +447,7 @@ License: MIT
     ctx.stroke();
   }
 
-  function drawParentMarkers(parents, { xMin, xMax, marginLeft, innerWidth, panel }) {
+  function drawParentMarkers(parents, { xMin, xMax, marginLeft, innerWidth, panel, step }) {
     const xRange = xMax - xMin;
     const markers = parents
       .map(({ value, label, color }) => {
@@ -391,7 +477,8 @@ License: MIT
     ctx.textBaseline = 'bottom';
 
     const items = markers.map((marker) => {
-      const text = `${marker.label}: ${marker.value.toFixed(0)}`;
+      const textValue = formatFromStep(marker.value, step || 1);
+      const text = `${marker.label}: ${textValue}`;
       const metrics = ctx.measureText(text);
       const width = metrics.width;
       const height = 16;
