@@ -207,8 +207,8 @@ License: MIT
       childPoints.push({ x, y: normalPdf(x, childMean, childSigma) });
     }
 
-    const maxChildY = Math.max(...childPoints.map((p) => p.y), 0.01);
-    const maxPopulationY = Math.max(...populationPoints.map((p) => p.y), 0.01);
+    const maxChildY = Math.max(...childPoints.map((p) => p.y), 1e-6);
+    const maxPopulationY = Math.max(...populationPoints.map((p) => p.y), 1e-6);
 
     const { ticks: childYTicks, maxValue: childYMax } = generateYTicks(maxChildY);
     const { ticks: populationYTicks, maxValue: populationYMax } = generateYTicks(maxPopulationY);
@@ -579,7 +579,7 @@ License: MIT
       ctx.moveTo(marginLeft - 4, y);
       ctx.lineTo(marginLeft, y);
       ctx.stroke();
-      ctx.fillText(`${(tick * 100).toFixed(2)}%`, marginLeft - 6, y);
+      ctx.fillText(tick.toFixed(4), marginLeft - 6, y);
     });
 
     ctx.save();
