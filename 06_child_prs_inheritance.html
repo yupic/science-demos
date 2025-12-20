@@ -11,21 +11,21 @@ License: MIT
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Наследование PRS</title>
+  <title>Наследование полигенных признаков</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css" />
   <script src="sd.js"></script>
 </head>
 <body>
 <div class="container">
-  <h1>Как PRS ребёнка зависит от родителей</h1>
+  <h1>Наследование полигенных признаков</h1>
   <p class="desc">Нормальные распределения PRS для популяции и гипотетического ребёнка. Изменяйте PRS родителей, чтобы увидеть смещение среднего ребёнка.</p>
   <div class="controls">
-    <label class="slider-label">Математическое ожидание:
-      <input type="number" id="meanInput" step="0.1" value="100" />
+    <label class="mut-label">Математическое ожидание:
+      <input type="number" id="meanInput" min="-10000" max="10000" step="0.1" value="100" />
     </label>
-    <label class="slider-label">Стандартное отклонение:
-      <input type="number" id="sdInput" step="0.1" value="15" min="0.0001" />
+    <label class="mut-label">Стандартное отклонение:
+      <input type="number" id="sdInput" min="0.1" max="10000" step="0.1" value="15" />
     </label>
     <label class="slider-label">Мать:
       <input type="range" id="motherInput" min="60" max="140" step="1" value="100" />
@@ -96,7 +96,11 @@ License: MIT
       meanInput.value = 100;
       return 100;
     }
-    return val;
+    const clamped = Math.min(Math.max(val, -10000), 10000);
+    if (clamped !== val) {
+      meanInput.value = clamped;
+    }
+    return clamped;
   }
 
   function getPopulationSigma() {
@@ -105,8 +109,15 @@ License: MIT
       sdInput.value = 15;
       return 15;
     }
-    return val;
+    const clamped = Math.min(Math.max(val, 0.1), 10000);
+    if (clamped !== val) {
+      sdInput.value = clamped;
+    }
+    return clamped;
   }
+
+  let lastBaseMean = getPopulationMean();
+  let lastBaseSigma = getPopulationSigma();
 
   function computeSliderStep(sigma) {
     const range = 6 * sigma;
@@ -136,14 +147,13 @@ License: MIT
     return 10 ** exp;
   }
 
-  function updateSliderBounds() {
-    const mean = getPopulationMean();
-    const sigma = getPopulationSigma();
+  function updateSliderBounds(mean, sigma, { forceParentValue = false } = {}) {
     const min = mean - 3 * sigma;
     const max = mean + 3 * sigma;
     const step = computeSliderStep(sigma);
 
     [motherInput, fatherInput].forEach((input) => {
+      if (forceParentValue) input.value = mean;
       input.min = min;
       input.max = max;
       input.step = step;
@@ -154,7 +164,7 @@ License: MIT
       input.value = value;
     });
 
-    return { mean, sigma, step };
+    return { step, min, max };
   }
 
   function updateLabels(step) {
@@ -164,7 +174,13 @@ License: MIT
   }
 
   function draw() {
-    const { mean: populationMean, sigma: populationSigma, step: sliderStep } = updateSliderBounds();
+    const populationMean = getPopulationMean();
+    const populationSigma = getPopulationSigma();
+    const baseChanged = populationMean !== lastBaseMean || populationSigma !== lastBaseSigma;
+    const { step: sliderStep } = updateSliderBounds(populationMean, populationSigma, { forceParentValue: baseChanged });
+    lastBaseMean = populationMean;
+    lastBaseSigma = populationSigma;
+
     const motherMean = Number(motherInput.value);
     const fatherMean = Number(fatherInput.value);
     const childMean = (motherMean + fatherMean) / 2;
@@ -405,22 +421,10 @@ License: MIT
     }
   }
 
-  const resetParentsToMean = () => {
-    const mean = getPopulationMean();
-    motherInput.value = mean;
-    fatherInput.value = mean;
-  };
-
   motherInput.addEventListener('input', draw);
   fatherInput.addEventListener('input', draw);
-  meanInput.addEventListener('input', () => {
-    resetParentsToMean();
-    draw();
-  });
-  sdInput.addEventListener('input', () => {
-    resetParentsToMean();
-    draw();
-  });
+  meanInput.addEventListener('input', draw);
+  sdInput.addEventListener('input', draw);
 
   draw();
 
