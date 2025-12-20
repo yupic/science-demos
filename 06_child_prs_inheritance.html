@@ -153,10 +153,10 @@ License: MIT
     const step = computeSliderStep(sigma);
 
     [motherInput, fatherInput].forEach((input) => {
-      if (forceParentValue) input.value = mean;
       input.min = min;
       input.max = max;
       input.step = step;
+      if (forceParentValue) input.value = mean;
       const current = Number(input.value);
       let value = current;
       if (!Number.isFinite(value)) value = mean;
@@ -212,6 +212,8 @@ License: MIT
     const panelHeight = (innerHeightTotal - dividerGap) / 2;
     const childPanel = { y: marginTop, height: panelHeight };
     const populationPanel = { y: marginTop + panelHeight + dividerGap, height: panelHeight };
+
+    drawTitles({ childPanel, populationPanel, marginLeft, childTitle: 'Распределение признака у ребёнка', populationTitle: 'Распределение признака в популяции' });
 
     const sampling = 400;
     const step = (xMax - xMin) / (sampling - 1);
@@ -439,6 +441,22 @@ License: MIT
   sdInput.addEventListener('input', draw);
 
   draw();
+  window.addEventListener('resize', draw);
+
+  function drawTitles({ childPanel, populationPanel, marginLeft, childTitle, populationTitle }) {
+    ctx.save();
+    ctx.fillStyle = '#333';
+    ctx.font = '16px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    if (childPanel) {
+      ctx.fillText(childTitle, marginLeft, childPanel.y - 4);
+    }
+    if (populationPanel) {
+      ctx.fillText(populationTitle, marginLeft, populationPanel.y - 4);
+    }
+    ctx.restore();
+  }
 
   function drawPopulationBands({ marginLeft, innerWidth, panel, mean, sigma, xMin, xMax }) {
     const bands = [
