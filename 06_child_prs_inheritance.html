@@ -303,7 +303,7 @@ License: MIT
       innerWidth
     });
 
-    drawChildProbabilities({
+    const childProbLabelY = drawChildProbabilities({
       childMean,
       childSigma,
       panel: childPanel,
@@ -313,6 +313,18 @@ License: MIT
       xMax,
       populationMean,
       populationSigma
+    });
+
+    drawSharedSigmaConnectors({
+      mean: populationMean,
+      sigma: populationSigma,
+      xMin,
+      xMax,
+      marginLeft,
+      innerWidth,
+      childPanel,
+      populationPanel,
+      childLabelY: childProbLabelY
     });
 
     drawSigmaLines({
@@ -575,6 +587,60 @@ License: MIT
     labels.forEach(({ x, value }) => {
       ctx.fillText(`${(value * 100).toFixed(2)}%`, toCanvasX(x), y);
     });
+
+    return y;
+  }
+
+  function drawSharedSigmaConnectors({
+    mean,
+    sigma,
+    xMin,
+    xMax,
+    marginLeft,
+    innerWidth,
+    childPanel,
+    populationPanel,
+    childLabelY
+  }) {
+    const xRange = xMax - xMin;
+    const positions = [-3, -2, -1, 0, 1, 2, 3].map((k) => mean + k * sigma);
+    const childGapStart = childLabelY - 10;
+    const childGapEnd = childLabelY + 16;
+    const populationGapStart = populationPanel.y;
+    const populationGapEnd = populationPanel.y + 32;
+    const bottomY = populationPanel.y + populationPanel.height;
+    const topY = childPanel.y;
+
+    ctx.save();
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([4, 6]);
+
+    positions.forEach((value) => {
+      if (!Number.isFinite(value)) return;
+      const x = marginLeft + ((value - xMin) / xRange) * innerWidth;
+      if (x < marginLeft || x > marginLeft + innerWidth) return;
+
+      const segments = [
+        { start: topY, end: childGapStart },
+        { start: childGapEnd, end: populationGapStart - 6 },
+        { start: populationGapEnd, end: bottomY }
+      ];
+
+      segments.forEach(({ start, end }) => {
+        if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+        const segStart = Math.max(start, topY);
+        const segEnd = Math.min(end, bottomY);
+        if (segEnd <= segStart) return;
+        ctx.beginPath();
+        ctx.moveTo(x, segStart);
+        ctx.lineTo(x, segEnd);
+        ctx.stroke();
+      });
+    });
+
+    ctx.setLineDash([]);
+    ctx.restore();
   }
 
   function drawAxes({
