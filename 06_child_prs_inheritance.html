@@ -361,6 +361,7 @@ License: MIT
     drawParentMarkers(
       [
         { value: motherMean, label: 'Мать', color: colors.mother },
+        { value: childMean, label: 'Ребёнок', color: colors.child },
         { value: fatherMean, label: 'Отец', color: colors.father }
       ],
       { xMin, xMax, marginLeft, innerWidth, panel: populationPanel, step: sliderStep }
@@ -550,27 +551,42 @@ License: MIT
       return { ...marker, text, width, height };
     });
 
-    const overlaps = (a, b) => a.x - a.width / 2 <= b.x + b.width / 2 && b.x - b.width / 2 <= a.x + a.width / 2;
+    const labelPriority = { Мать: 0, Ребёнок: 1, Отец: 2 };
+    const overlaps = (a, b) =>
+      a.x + a.width / 2 + gap / 2 >= b.x - b.width / 2 - gap / 2 &&
+      b.x + b.width / 2 + gap / 2 >= a.x - a.width / 2 - gap / 2;
 
-    let positions = items.map((item) => ({ ...item, drawX: item.x, drawY: labelY }));
+    const sorted = items
+      .slice()
+      .sort((a, b) => {
+        if (a.value === b.value) {
+          const pa = labelPriority[a.label] ?? 99;
+          const pb = labelPriority[b.label] ?? 99;
+          return pa - pb;
+        }
+        return a.value - b.value;
+      });
 
-    if (positions.length >= 2 && overlaps(positions[0], positions[1])) {
-      const ordered = positions
-        .slice()
-        .sort((a, b) => {
-          if (a.value === b.value) {
-            if (a.label === b.label) return 0;
-            return a.label === 'Мать' ? -1 : 1;
-          }
-          return a.value - b.value;
-        });
+    const groups = [];
+    sorted.forEach((item) => {
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && overlaps(lastGroup[lastGroup.length - 1], item)) {
+        lastGroup.push(item);
+      } else {
+        groups.push([item]);
+      }
+    });
 
-      const totalWidth = ordered[0].width + gap + ordered[1].width;
-      const center = (ordered[0].x + ordered[1].x) / 2;
-      ordered[0].drawX = center - totalWidth / 2 + ordered[0].width / 2;
-      ordered[1].drawX = center + totalWidth / 2 - ordered[1].width / 2;
-      positions = ordered;
-    }
+    const positions = groups.flatMap((group) => {
+      const center = group.reduce((sum, item) => sum + item.x, 0) / group.length;
+      const totalWidth = group.reduce((sum, item) => sum + item.width, 0) + gap * (group.length - 1);
+      let cursor = center - totalWidth / 2 + group[0].width / 2;
+      return group.map((item, idx) => {
+        const drawX = cursor;
+        cursor += item.width + gap;
+        return { ...item, drawX, drawY: labelY };
+      });
+    });
 
     positions.forEach((item) => {
       ctx.fillStyle = item.color;
