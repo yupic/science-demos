@@ -27,6 +27,10 @@ License: MIT
     <label class="mut-label">Стандартное отклонение:
       <input type="number" id="sdInput" min="0.1" max="10000" step="0.1" value="15" />
     </label>
+    <label class="slider-label">Сдвиг:
+      <input type="range" id="shiftInput" min="60" max="140" step="1" value="0" />
+      <span id="shiftValue" class="slider-value">0</span>
+    </label>
     <label class="slider-label">Мать:
       <input type="range" id="motherInput" min="60" max="140" step="1" value="100" />
       <span id="motherValue" class="slider-value">100</span>
@@ -51,8 +55,10 @@ License: MIT
   const ctx = canvas.getContext('2d');
   const meanInput = document.getElementById('meanInput');
   const sdInput = document.getElementById('sdInput');
+  const shiftInput = document.getElementById('shiftInput');
   const motherInput = document.getElementById('motherInput');
   const fatherInput = document.getElementById('fatherInput');
+  const shiftValue = document.getElementById('shiftValue');
   const motherValue = document.getElementById('motherValue');
   const fatherValue = document.getElementById('fatherValue');
 
@@ -164,11 +170,22 @@ License: MIT
       input.value = value;
     });
 
+    const shiftMin = -3 * sigma;
+    const shiftMax = 3 * sigma;
+    shiftInput.min = shiftMin;
+    shiftInput.max = shiftMax;
+    shiftInput.step = step;
+    let shiftVal = Number(shiftInput.value);
+    if (forceParentValue || !Number.isFinite(shiftVal)) shiftVal = 0;
+    shiftVal = Math.min(Math.max(shiftVal, shiftMin), shiftMax);
+    shiftInput.value = shiftVal;
+
     return { step, min, max };
   }
 
   function updateLabels(step) {
     const sliderStep = step ?? (Number(motherInput.step) || 1);
+    shiftValue.textContent = formatFromStep(shiftInput.value, sliderStep);
     motherValue.textContent = formatFromStep(motherInput.value, sliderStep);
     fatherValue.textContent = formatFromStep(fatherInput.value, sliderStep);
   }
@@ -183,7 +200,8 @@ License: MIT
 
     const motherMean = Number(motherInput.value);
     const fatherMean = Number(fatherInput.value);
-    const childMean = (motherMean + fatherMean) / 2;
+    const shift = Number(shiftInput.value) || 0;
+    const childMean = (motherMean + fatherMean) / 2 + shift;
     const childSigma = Math.sqrt(0.5) * populationSigma;
     const xMin = populationMean - 4 * populationSigma;
     const xMax = populationMean + 4 * populationSigma;
@@ -435,6 +453,7 @@ License: MIT
     }
   }
 
+  shiftInput.addEventListener('input', draw);
   motherInput.addEventListener('input', draw);
   fatherInput.addEventListener('input', draw);
   meanInput.addEventListener('input', draw);
@@ -570,18 +589,13 @@ License: MIT
     populationMean,
     populationSigma
   }) {
-    const a = populationMean - 3 * populationSigma;
-    const b = populationMean - 2 * populationSigma;
-    const c = populationMean - 1 * populationSigma;
-    const d = populationMean + 1 * populationSigma;
-    const e = populationMean + 2 * populationSigma;
-    const f = populationMean + 3 * populationSigma;
+    const thresholds = [-3, -2, -1, 0, 1, 2, 3].map((k) => populationMean + k * populationSigma);
 
     const clamp = (value) => Math.min(Math.max(value, xMin), xMax);
     const xRange = xMax - xMin;
     const toCanvasX = (val) => marginLeft + ((val - xMin) / xRange) * innerWidth;
 
-    const labels = [a, b, c, d, e, f].map((value) => {
+    const labels = thresholds.map((value) => {
       const cdf = normalCdf(value, childMean, childSigma);
       return {
         x: clamp(value),
