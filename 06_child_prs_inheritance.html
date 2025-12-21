@@ -576,25 +576,19 @@ License: MIT
     const d = populationMean + 1 * populationSigma;
     const e = populationMean + 2 * populationSigma;
     const f = populationMean + 3 * populationSigma;
-    const probA = normalCdf(a, childMean, childSigma);
-    const probB = normalCdf(b, childMean, childSigma);
-    const probC = normalCdf(c, childMean, childSigma);
-    const probGT1 = 1 - normalCdf(d, childMean, childSigma);
-    const probGT2 = 1 - normalCdf(e, childMean, childSigma);
-    const probGT3 = 1 - normalCdf(f, childMean, childSigma);
 
     const clamp = (value) => Math.min(Math.max(value, xMin), xMax);
     const xRange = xMax - xMin;
     const toCanvasX = (val) => marginLeft + ((val - xMin) / xRange) * innerWidth;
 
-    const labels = [
-      { x: clamp(a), value: probA },
-      { x: clamp(b), value: probB },
-      { x: clamp(c), value: probC },
-      { x: clamp(d), value: probGT1 },
-      { x: clamp(e), value: probGT2 },
-      { x: clamp(f), value: probGT3 }
-    ];
+    const labels = [a, b, c, d, e, f].map((value) => {
+      const cdf = normalCdf(value, childMean, childSigma);
+      return {
+        x: clamp(value),
+        below: cdf,
+        above: 1 - cdf
+      };
+    });
 
     ctx.fillStyle = '#444';
     ctx.font = '13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
@@ -602,8 +596,8 @@ License: MIT
     ctx.textBaseline = 'top';
 
     const y = panel.y + panel.height + 6;
-    labels.forEach(({ x, value }) => {
-      ctx.fillText(`${(value * 100).toFixed(2)}%`, toCanvasX(x), y);
+    labels.forEach(({ x, below, above }) => {
+      ctx.fillText(`${(below * 100).toFixed(2)}% / ${(above * 100).toFixed(2)}%`, toCanvasX(x), y);
     });
 
     return y;
