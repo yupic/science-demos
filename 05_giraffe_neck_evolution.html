@@ -1253,8 +1253,7 @@ License: MIT
 
   alleleCanvas.addEventListener('click', (evt) => {
     const rect = alleleCanvas.getBoundingClientRect();
-    const scaleY = alleleCanvas.height / rect.height;
-    const y = (evt.clientY - rect.top) * scaleY;
+    const y = evt.clientY - rect.top;
     const pos = Math.floor((y - ALLELE_MARGIN) / ALLELE_LINE_THICKNESS);
     if (pos >= 0 && pos < GENOME_LENGTH) {
       selectAllele(pos);
