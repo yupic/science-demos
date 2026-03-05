@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 16. Бег. Сравнение мужчин и женщин</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const BASE_SVG_SIZE = 600;
+        const GRAPH_SIZE = 900;
+        const scaleToGraph = (value) => (value / BASE_SVG_SIZE) * GRAPH_SIZE;
+
+        const sceneConfig = {
+            meta: { mode: "graphOnly", title: "График 1080p" },
+            graph: {
+                size: GRAPH_SIZE,
+                axisYLabel: "Сила мышц",
+                axisXLabel: "Длина ног",
+                watermark: "РСНС",
+                arc: {
+                    startX: scaleToGraph(75),
+                    radius: scaleToGraph(525),
+                    endY: scaleToGraph(525)
+                }
+            }
+        };
+
+        DemoEngine.mount({
+            sceneConfig,
+            timeline: [],
+            autoPlayTimeline: false
+        });
+
+        const device = document.getElementById("app");
+        if (device) {
+            const panelNote = document.createElement("div");
+            panelNote.textContent = "Каждая точка — это один человек, ▲ — женщина, ● — мужчина";
+            panelNote.style.position = "absolute";
+            panelNote.style.top = "4px";
+            panelNote.style.left = "0";
+            panelNote.style.right = "0";
+            panelNote.style.zIndex = "5";
+            panelNote.style.pointerEvents = "none";
+            panelNote.style.textAlign = "center";
+            panelNote.style.fontSize = "30px";
+            panelNote.style.fontWeight = "700";
+            panelNote.style.color = "#CACACA";
+            panelNote.style.letterSpacing = "0.5px";
+            device.style.position = "relative";
+            device.appendChild(panelNote);
+        }
+
+        function randomNormal(mean, sd) {
+            let u = 0;
+            let v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+            return mean + z * sd;
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        const SVG_SIZE = sceneConfig.graph?.size ?? BASE_SVG_SIZE;
+
+        function toSvgX(x) {
+            return (x / 100) * SVG_SIZE;
+        }
+
+        function toSvgY(y) {
+            return SVG_SIZE - (y / 100) * SVG_SIZE;
+        }
+
+        const svg = document.querySelector("#app .chart-container svg");
+        const NS = "http://www.w3.org/2000/svg";
+
+        if (svg) {
+            function drawSdCircle(mean, sd, strokeColor) {
+                const cx = toSvgX(mean);
+                const cy = toSvgY(mean);
+                const radius = (2.5 * sd / 100) * SVG_SIZE;
+                const circle = document.createElementNS(NS, "circle");
+                circle.setAttribute("cx", String(cx));
+                circle.setAttribute("cy", String(cy));
+                circle.setAttribute("r", String(radius));
+                circle.setAttribute("fill", "none");
+                circle.setAttribute("stroke", strokeColor);
+                circle.setAttribute("stroke-width", "3");
+                circle.setAttribute("stroke-opacity", "0.9");
+                svg.appendChild(circle);
+                return { cx, cy, radius };
+            }
+
+            function getCirclePointByDegrees(cx, cy, radius, degrees) {
+                const angleRad = (degrees * Math.PI) / 180;
+                return {
+                    x: cx + (radius * Math.cos(angleRad)),
+                    y: cy - (radius * Math.sin(angleRad))
+                };
+            }
+
+            function drawCallout(textLines, textX, textY, centerX, centerY, radius, degrees, color, align = "start") {
+                const target = getCirclePointByDegrees(centerX, centerY, radius, degrees);
+                const targetX = target.x;
+                const targetY = target.y;
+                const line = document.createElementNS(NS, "line");
+                line.setAttribute("x1", String(textX - 4));
+                line.setAttribute("y1", String(textY - 20));
+                line.setAttribute("x2", String(targetX));
+                line.setAttribute("y2", String(targetY));
+                line.setAttribute("stroke", color);
+                line.setAttribute("stroke-width", "3");
+                line.setAttribute("stroke-linecap", "round");
+                svg.appendChild(line);
+
+                const dx = targetX - textX;
+                const dy = targetY - textY;
+                const len = Math.sqrt((dx * dx) + (dy * dy)) || 1;
+                const ux = dx / len;
+                const uy = dy / len;
+                const arrowLength = 14;
+                const arrowHalfWidth = 7;
+                const baseX = targetX - (ux * arrowLength);
+                const baseY = targetY - (uy * arrowLength);
+                const perpX = -uy;
+                const perpY = ux;
+                const arrow = document.createElementNS(NS, "polygon");
+                arrow.setAttribute(
+                    "points",
+                    [
+                        `${targetX},${targetY}`,
+                        `${baseX + (perpX * arrowHalfWidth)},${baseY + (perpY * arrowHalfWidth)}`,
+                        `${baseX - (perpX * arrowHalfWidth)},${baseY - (perpY * arrowHalfWidth)}`
+                    ].join(" ")
+                );
+                arrow.setAttribute("fill", color);
+                svg.appendChild(arrow);
+
+                const label = document.createElementNS(NS, "text");
+                label.setAttribute("x", String(textX));
+                label.setAttribute("y", String(textY - 12));
+                label.setAttribute("text-anchor", align);
+                label.setAttribute("font-size", "24px");
+                label.setAttribute("font-weight", "700");
+                label.setAttribute("fill", color);
+                label.setAttribute("stroke", "#111");
+                label.setAttribute("stroke-width", "1.5");
+                label.setAttribute("paint-order", "stroke fill");
+                textLines.forEach((lineText, index) => {
+                    const tspan = document.createElementNS(NS, "tspan");
+                    tspan.setAttribute("x", String(textX));
+                    tspan.setAttribute("dy", index === 0 ? "0" : "1.15em");
+                    tspan.textContent = lineText;
+                    label.appendChild(tspan);
+                });
+                svg.appendChild(label);
+            }
+
+            function drawTriangleUp(cx, cy, size, color) {
+                const halfBase = size * 0.866;
+                const triangle = document.createElementNS(NS, "polygon");
+                const points = [
+                    `${cx},${cy - size}`,
+                    `${cx - halfBase},${cy + size * 0.5}`,
+                    `${cx + halfBase},${cy + size * 0.5}`
+                ].join(" ");
+                triangle.setAttribute("points", points);
+                triangle.setAttribute("fill", color);
+                svg.appendChild(triangle);
+            }
+
+            function createGroupPoints(pointCount, mean, sd, color, shape) {
+                const points = [];
+                for (let i = 0; i < pointCount; i += 1) {
+                    const x = clamp(randomNormal(mean, sd), 0, 100);
+                    const y = clamp(randomNormal(mean, sd), 0, 100);
+                    points.push({
+                        px: toSvgX(x),
+                        py: toSvgY(y),
+                        color,
+                        shape
+                    });
+                }
+                return points;
+            }
+
+            function appendPoint(point, targetSvg) {
+                if (point.shape === "triangleUp") {
+                    drawTriangleUp(point.px, point.py, 5, point.color);
+                    return;
+                }
+                const dot = document.createElementNS(NS, "circle");
+                dot.setAttribute("cx", String(point.px));
+                dot.setAttribute("cy", String(point.py));
+                dot.setAttribute("r", "3");
+                dot.setAttribute("fill", point.color);
+                targetSvg.appendChild(dot);
+            }
+
+            function animateGroups(groups, durationMs, onComplete) {
+                const startedAt = performance.now();
+                const rendered = groups.map(() => 0);
+
+                function tick(now) {
+                    const progress = Math.min((now - startedAt) / durationMs, 1);
+
+                    groups.forEach((group, index) => {
+                        const targetCount = Math.floor(group.points.length * progress);
+                        if (targetCount <= rendered[index]) return;
+
+                        const fragment = document.createDocumentFragment();
+                        for (let i = rendered[index]; i < targetCount; i += 1) {
+                            appendPoint(group.points[i], fragment);
+                        }
+                        svg.appendChild(fragment);
+                        rendered[index] = targetCount;
+                    });
+
+                    if (progress < 1) {
+                        requestAnimationFrame(tick);
+                        return;
+                    }
+
+                    if (typeof onComplete === "function") {
+                        onComplete();
+                    }
+                }
+
+                requestAnimationFrame(tick);
+            }
+
+            const menPoints = createGroupPoints(600, 60, 15, "rgba(130, 200, 255, 0.62)", "circle");
+            const womenPoints = createGroupPoints(600, 55, 15, "rgba(255, 145, 205, 0.7)", "triangleUp");
+
+            animateGroups(
+                [
+                    { points: menPoints },
+                    { points: womenPoints }
+                ],
+                4000,
+                () => {
+                    const menCircle = drawSdCircle(60, 15, "rgba(130, 200, 255, 0.95)");
+                    const womenCircle = drawSdCircle(55, 15, "rgba(255, 145, 205, 0.95)");
+
+                    drawCallout(
+                        ["В эту окружность попадает большинство мужчин"],
+                        scaleToGraph(255),
+                        scaleToGraph(550),
+                        menCircle.cx,
+                        menCircle.cy,
+                        menCircle.radius + 4,
+                        234,
+                        "rgba(130, 200, 255, 0.98)",
+                        "start"
+                    );
+                    drawCallout(
+                        ["В эту окружность попадает большинство женщин"],
+                        scaleToGraph(255),
+                        scaleToGraph(570),
+                        womenCircle.cx,
+                        womenCircle.cy,
+                        womenCircle.radius + 4,
+                        240,
+                        "rgba(255, 145, 205, 0.98)",
+                        "start"
+                    );
+
+                    const bottomSummary = document.createElementNS(NS, "text");
+                    bottomSummary.setAttribute("x", String(scaleToGraph(300)));
+                    bottomSummary.setAttribute("y", String(scaleToGraph(586)));
+                    bottomSummary.setAttribute("text-anchor", "middle");
+                    bottomSummary.setAttribute("font-size", "24px");
+                    bottomSummary.setAttribute("font-weight", "700");
+                    bottomSummary.setAttribute("fill", "#CACACA");
+                    bottomSummary.setAttribute("stroke", "#111");
+                    bottomSummary.setAttribute("stroke-width", "1.5");
+                    bottomSummary.setAttribute("paint-order", "stroke fill");
+                    bottomSummary.textContent = "Результат: количество женщин \"▲\" в зоне РСНС больше, чем мужчин \"●\"";
+                    svg.appendChild(bottomSummary);
+                }
+            );
+        }
+    </script>
+</body>
+</html>

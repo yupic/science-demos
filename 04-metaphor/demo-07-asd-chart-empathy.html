@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 7. РАС. Эмпатия</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const sceneConfig = {
+            meta: { mode: "graphEq", title: "Ребёнок 1 и Ребёнок 2" },
+            graph: {
+                size: 600,
+                axisXLabel: "Аффективная эмпатия",
+                axisYLabel: "Когнитивная эмпатия",
+                watermark: "Аутизм",
+                gradientId: "cyberGradient"
+            },
+            controls: {
+                showControlsScreen: true,
+                sliderHeight: 180,
+                slidersPerRow: 2
+            },
+            speedPanel: {
+                type: "fixed",
+                fixedText: "{name}"
+            },
+            people: [
+                {
+                    id: "petya",
+                    pointId: "petya_point",
+                    name: "Петя",
+                    color: "#00ff00",
+                    screenId: "mainScreenPetya",
+                    speedDisplayId: "speedDisplayPetya",
+                    indicatorIds: {
+                        groupId: "indicatorGroupPetya",
+                        circleId: "indicatorPetya",
+                        labelId: "indicatorLabelPetya"
+                    },
+                    sliders: [
+                        { id: "legs", domId: "legsInputPetya", label: "Аффективная эмпатия", value: 50 },
+                        { id: "muscle", domId: "muscleInputPetya", label: "Когнитивная эмпатия", value: 50 }
+                    ],
+                    mapping: { xSliderId: "legs", ySliderId: "muscle" }
+                },
+                {
+                    id: "sveta",
+                    pointId: "sveta_point",
+                    name: "Света",
+                    color: "#ff4ac3",
+                    fill: "#ffd7f5",
+                    labelColor: "#ffb3e9",
+                    screenId: "mainScreenSveta",
+                    speedDisplayId: "speedDisplaySveta",
+                    indicatorIds: {
+                        groupId: "indicatorGroupSveta",
+                        circleId: "indicatorSveta",
+                        labelId: "indicatorLabelSveta"
+                    },
+                    sliders: [
+                        { id: "legs", domId: "legsInputSveta", label: "Аффективная эмпатия", value: 50 },
+                        { id: "muscle", domId: "muscleInputSveta", label: "Когнитивная эмпатия", value: 50 }
+                    ],
+                    mapping: { xSliderId: "legs", ySliderId: "muscle" }
+                }
+            ],
+            points: [
+                {
+                    id: "masha",
+                    name: "Маша",
+                    color: "#4ac8ff",
+                    fill: "#d9f4ff",
+                    labelColor: "#9adfff",
+                    clampToRange: false,
+                    keepInsideTop: false,
+                    x: 50,
+                    y: 120
+                }
+            ]
+        };
+
+        const timeline = [
+            { action: "wait", duration: 2000 },
+            {
+                action: "move",
+                duration: 2000,
+                targets: [
+                    { personId: "petya", to: { x: 12, y: 70 } },
+                    { personId: "sveta", to: { x: 70, y: 12 } }
+                ]
+            },
+            { action: "wait", duration: 67000 },
+            {
+                action: "move",
+                duration: 2000,
+                targets: [
+                    { pointId: "masha", to: { x: 22, y: 74 } }
+                ]
+            },
+        ];
+
+        DemoEngine.mount({
+            sceneConfig,
+            timeline,
+            autoPlayTimeline: true
+        });
+    </script>
+</body>
+</html>

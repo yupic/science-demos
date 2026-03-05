@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 8. Бег. Средняя длина ног</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const BASE_SVG_SIZE = 600;
+        const GRAPH_SIZE = 900;
+        const scaleToGraph = (value) => (value / BASE_SVG_SIZE) * GRAPH_SIZE;
+
+        const sceneConfig = {
+            meta: { mode: "graphOnly", title: "График 1080p" },
+            graph: {
+                size: GRAPH_SIZE,
+                axisYLabel: "Сила мышц",
+                axisXLabel: "Длина ног",
+                watermark: "РСНС",
+                arc: {
+                    startX: scaleToGraph(75),
+                    radius: scaleToGraph(525),
+                    endY: scaleToGraph(525)
+                }
+            }
+        };
+
+        DemoEngine.mount({
+            sceneConfig,
+            timeline: [],
+            autoPlayTimeline: false
+        });
+
+        const device = document.getElementById("app");
+        if (device) {
+            const panelNote = document.createElement("div");
+            panelNote.textContent = "Каждая точка — это один человек";
+            panelNote.style.position = "absolute";
+            panelNote.style.top = "4px";
+            panelNote.style.left = "0";
+            panelNote.style.right = "0";
+            panelNote.style.zIndex = "5";
+            panelNote.style.pointerEvents = "none";
+            panelNote.style.textAlign = "center";
+            panelNote.style.fontSize = "30px";
+            panelNote.style.fontWeight = "700";
+            panelNote.style.color = "#CACACA";
+            panelNote.style.letterSpacing = "0.5px";
+            device.style.position = "relative";
+            device.appendChild(panelNote);
+        }
+
+        function randomNormal(mean, sd) {
+            let u = 0;
+            let v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+            return mean + z * sd;
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        const SVG_SIZE = sceneConfig.graph?.size ?? BASE_SVG_SIZE;
+
+        function toSvgX(x) {
+            return (x / 100) * SVG_SIZE;
+        }
+
+        function toSvgY(y) {
+            return SVG_SIZE - (y / 100) * SVG_SIZE;
+        }
+
+        const svg = document.querySelector("#app .chart-container svg");
+        const NS = "http://www.w3.org/2000/svg";
+
+        if (svg) {
+            const generatedPoints = [];
+            const pointCount = 3000;
+            const arcRadiusPx = sceneConfig.graph?.arc?.radius ?? scaleToGraph(525);
+
+            for (let i = 0; i < pointCount; i += 1) {
+                const x = clamp(randomNormal(60, 15), 0, 100);
+                const y = clamp(randomNormal(60, 15), 0, 100);
+                const px = toSvgX(x);
+                const py = toSvgY(y);
+                const dx = SVG_SIZE - px;
+                const dy = py;
+                const distanceToTopRight = Math.sqrt((dx * dx) + (dy * dy));
+                const isOutside = distanceToTopRight > arcRadiusPx;
+                const dot = document.createElementNS(NS, "circle");
+                dot.setAttribute("cx", String(px));
+                dot.setAttribute("cy", String(py));
+                dot.setAttribute("r", "3");
+                dot.setAttribute("fill", isOutside ? "rgba(216, 216, 75, 0.6)" : "rgba(220, 220, 255, 0.6)");
+                svg.appendChild(dot);
+                generatedPoints.push({ x, y });
+            }
+
+            const outsidePoints = generatedPoints.filter((point) => {
+                const px = toSvgX(point.x);
+                const py = toSvgY(point.y);
+                const dx = SVG_SIZE - px;
+                const dy = py;
+                const distanceToTopRight = Math.sqrt((dx * dx) + (dy * dy));
+                return distanceToTopRight > arcRadiusPx;
+            });
+
+            const meanXAll = generatedPoints.reduce((sum, point) => sum + point.x, 0) / generatedPoints.length;
+            const meanXOutside = outsidePoints.length > 0
+                ? outsidePoints.reduce((sum, point) => sum + point.x, 0) / outsidePoints.length
+                : meanXAll;
+
+            function drawMeanLine(xValue, color, dashPattern) {
+                const xPx = toSvgX(xValue);
+                const meanLine = document.createElementNS(NS, "line");
+                meanLine.setAttribute("x1", String(xPx));
+                meanLine.setAttribute("y1", String(scaleToGraph(70)));
+                meanLine.setAttribute("x2", String(xPx));
+                meanLine.setAttribute("y2", String(SVG_SIZE));
+                meanLine.setAttribute("stroke", color);
+                meanLine.setAttribute("stroke-width", "4");
+                meanLine.setAttribute("stroke-dasharray", dashPattern);
+                meanLine.style.filter = "drop-shadow(2px 2px 2px #000)";
+                svg.appendChild(meanLine);
+                return xPx;
+            }
+
+            function drawMeanLabel(xPx, yPx, lines, color, strokeColor) {
+                const label = document.createElementNS(NS, "text");
+                label.setAttribute("x", String(xPx));
+                label.setAttribute("y", String(yPx));
+                label.setAttribute("text-anchor", "middle");
+                label.setAttribute("font-size", "30px");
+                label.setAttribute("font-weight", "600");
+                label.setAttribute("fill", color);
+                label.setAttribute("stroke", strokeColor);
+                label.setAttribute("stroke-width", "2");
+                label.setAttribute("stroke-linejoin", "round");
+                label.setAttribute("paint-order", "stroke fill");
+                lines.forEach((line, index) => {
+                    const tspan = document.createElementNS(NS, "tspan");
+                    tspan.setAttribute("x", String(xPx));
+                    tspan.setAttribute("dy", index === 0 ? "0" : "1.2em");
+                    tspan.textContent = line;
+                    label.appendChild(tspan);
+                });
+                svg.appendChild(label);
+            }
+
+            const meanAllXPx = drawMeanLine(meanXAll, "#3B8BDB", "10 8");
+            const meanOutsideXPx = drawMeanLine(meanXOutside, "#D8D84B", "4 6");
+            drawMeanLabel(meanAllXPx, 24, ["средняя длина", "ног среди", "всех людей"], "#3B8BDB", "#fff");
+            drawMeanLabel(meanOutsideXPx, 24, ["средняя длина", "ног среди", "людей с РСНС"], "#D8D84B", "#000");
+        }
+    </script>
+</body>
+</html>

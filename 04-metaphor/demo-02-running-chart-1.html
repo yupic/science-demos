@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 2. Бег. Пульт + график + 1 чел</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const sceneConfig = {
+            meta: { mode: "graphEq", title: "Петя" },
+            graph: {
+                size: 600,
+                axisYLabel: "Сила мышц",
+                axisXLabel: "Длина ног",
+                watermark: "РСНС",
+                gradientId: "cyberGradient"
+            },
+            controls: {
+                showControlsScreen: true,
+                sliderHeight: 210,
+                slidersPerRow: 2
+            },
+            speedPanel: {
+                type: "formula2d",
+                maxSpeed: 11,
+                thresholdSpeed: 100 / 13
+            },
+            people: [
+                {
+                    id: "petya",
+                    pointId: "petya_point",
+                    name: "Петя",
+                    color: "#00ff00",
+                    screenId: "mainScreen",
+                    speedDisplayId: "speedDisplay",
+                    indicatorIds: {
+                        groupId: "indicatorGroup",
+                        circleId: "indicator",
+                        labelId: "indicatorLabel"
+                    },
+                    sliders: [
+                        { id: "legs", domId: "legsInput", label: "Длина ног", value: 50 },
+                        { id: "muscle", domId: "muscleInput", label: "Сила мышц", value: 50 }
+                    ],
+                    mapping: { xSliderId: "legs", ySliderId: "muscle" }
+                }
+            ]
+        };
+
+        const timeline = [
+            { action: "wait", duration: 2000 },
+            { action: "move", duration: 1380, target: { personId: "petya", to: { x: 0, y: 50 } } },
+            { action: "move", duration: 2000, target: { personId: "petya", to: { x: 0, y: 0 } } },
+            { action: "wait", duration: 2160 },
+            { action: "move", duration: 4520, target: { personId: "petya", to: { x: 90, y: 90 } } },
+            { action: "wait", duration: 14300 },
+            { action: "move", duration: 2000, target: { personId: "petya", to: { x: 38.128, y: 38.128 } } },
+            { action: "wait", duration: 10000 },
+            { action: "move", duration: 2000, target: { personId: "petya", to: { x: 20, y: 80 } } },
+            { action: "wait", duration: 3900 },
+            { action: "move", duration: 2000, target: { personId: "petya", to: { x: 80, y: 20 } } },
+            { action: "wait", duration: 7000 },
+            { action: "move", duration: 2000, target: { personId: "petya", to: { x: 6, y: 80 } } },
+            { action: "wait", duration: 4500 },
+            { action: "move", duration: 2000, target: { personId: "petya", to: { x: 80, y: 6 } } }
+        ];
+
+        DemoEngine.mount({
+            sceneConfig,
+            timeline,
+            autoPlayTimeline: true
+        });
+    </script>
+</body>
+</html>

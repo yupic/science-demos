@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 1. Бег. Пульт</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const sceneConfig = {
+            meta: { mode: "eqOnly", title: "Большой эквалайзер" },
+            controls: {
+                showControlsScreen: true,
+                sliderHeight: 210,
+                slidersPerRow: 4,
+                sliderLabelFontSize: 30
+            },
+            speedPanel: {
+                type: "weighted",
+                prefix: "Скорость бега: ",
+                baseSpeed: 8,
+                maxSpeed: 11,
+                thresholdSpeed: 100 / 13,
+                midSliderValue: 50,
+                sliderMax: 100,
+                invertSliderId: "mass",
+                order: ["muscle", "legs", "mass", "tendon", "achilles", "ck", "pc", "atp", "lungs", "foot", "fibers", "mito"],
+                weights: [3, 3, 1, 3, 1, 1, 2, 2, 1, 1, 3, 1]
+            },
+            people: [
+                {
+                    id: "athlete",
+                    name: "Скорость",
+                    screenId: "mainScreen",
+                    speedDisplayId: "speedDisplay",
+                    sliders: [
+                        { id: "muscle", domId: "muscleInput", label: "Сила мышц", value: 50 },
+                        { id: "legs", domId: "legsInput", label: "Длина ног", value: 50 },
+                        { id: "foot", domId: "footLengthInput", label: "Длина стопы", value: 50 },
+                        { id: "mass", domId: "bodyMassInput", label: "Масса тела", value: 50 },
+                        { id: "lungs", domId: "lungsInput", labelHtml: "Объём<br>лёгких", value: 50 },
+                        { id: "tendon", domId: "tendonInput", label: "Упругость сухожилий", value: 50 },
+                        { id: "fibers", domId: "fastFibersInput", label: "Доля быстрых волокон", value: 50 },
+                        { id: "mito", domId: "mitochondriaDensityInput", label: "Плотность митохондрий", value: 50 },
+                        { id: "achilles", domId: "achillesTendonLengthInput", label: "Длина ахиллова сухожилия", value: 50 },
+                        { id: "ck", domId: "creatineKinaseActivityInput", labelHtml: "Активность<br>креатин-<br>киназы", value: 50 },
+                        { id: "pc", domId: "phosphocreatineReserveInput", labelHtml: "Запас<br>фосфо-<br>креатина", value: 50 },
+                        { id: "atp", domId: "atpResynthesisRateInput", labelHtml: "Скорость<br>ресинтеза<br>АТФ", value: 50 }
+                    ],
+                    mapping: { xSliderId: "legs", ySliderId: "muscle" }
+                }
+            ]
+        };
+
+        const engine = DemoEngine.mount({
+            sceneConfig,
+            timeline: [],
+            autoPlayTimeline: false
+        });
+
+        const ONE_SHOT_DELAY_MS = 2000;
+        const ONE_SHOT_MOVE_MS = 900;
+        const TARGET_PERSON_ID = "athlete";
+        const START_VALUE = 50;
+        const END_VALUES = [60, 20, 30, 80, 80, 10, 20, 70, 70, 20, 60, 80];
+        const sliderIds = sceneConfig.people
+            .find((person) => person.id === TARGET_PERSON_ID)
+            .sliders
+            .map((slider) => slider.id);
+
+        let oneShotStarted = false;
+
+        function setAllSliders(value) {
+            sliderIds.forEach((sliderId) => {
+                engine.setSlider(TARGET_PERSON_ID, sliderId, value);
+            });
+        }
+
+        function animateAllSliders(fromValue, toValues, duration) {
+            const startTime = performance.now();
+
+            function frame(now) {
+                const t = Math.min((now - startTime) / duration, 1);
+                sliderIds.forEach((sliderId, index) => {
+                    const toValue = toValues[index] ?? fromValue;
+                    const value = fromValue + (toValue - fromValue) * t;
+                    engine.setSlider(TARGET_PERSON_ID, sliderId, value);
+                });
+                if (t < 1) requestAnimationFrame(frame);
+            }
+
+            requestAnimationFrame(frame);
+        }
+
+        function playOneShot() {
+            if (oneShotStarted) return;
+            oneShotStarted = true;
+            setAllSliders(START_VALUE);
+            window.setTimeout(() => {
+                animateAllSliders(START_VALUE, END_VALUES, ONE_SHOT_MOVE_MS);
+            }, ONE_SHOT_DELAY_MS);
+        }
+
+        playOneShot();
+    </script>
+</body>
+</html>

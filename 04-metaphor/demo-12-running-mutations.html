@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 12. Бег. Рюкзак с камнями</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+    <style>
+        .backpack-widget {
+            position: absolute;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: auto;
+        }
+
+        .backpack-widget .channel {
+            width: auto;
+        }
+
+        .backpack-widget .label {
+            width: max-content;
+            overflow: visible;
+            text-overflow: clip;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const sceneConfig = {
+            meta: { mode: "graphEq", title: "Петя и Света" },
+            graph: {
+                size: 600,
+                axisYLabel: "Сила мышц",
+                axisXLabel: "Длина ног",
+                watermark: "РСНС",
+                gradientId: "cyberGradient"
+            },
+            controls: {
+                showControlsScreen: true,
+                sliderHeight: 210,
+                slidersPerRow: 2
+            },
+            speedPanel: {
+                type: "formula2d",
+                maxSpeed: 11,
+                thresholdSpeed: 100 / 13,
+                inputTransform: ({ x, y }) => {
+                    const backpack = Number(window.backpackSlider?.getValue?.() ?? 0);
+                    const shift = 0.4 * backpack;
+                    const dx = x - 100;
+                    const dy = y - 100;
+                    const len = Math.hypot(dx, dy);
+                    if (len < 1e-9 || shift <= 0) {
+                        return { x, y };
+                    }
+                    const ux = dx / len;
+                    const uy = dy / len;
+                    return {
+                        x: x + (ux * shift),
+                        y: y + (uy * shift)
+                    };
+                }
+            },
+            people: [
+                {
+                    id: "petya",
+                    pointId: "petya_point",
+                    name: "Спортсмен",
+                    color: "#00ff00",
+                    screenId: "mainScreenPetya",
+                    speedDisplayId: "speedDisplayPetya",
+                    indicatorIds: {
+                        groupId: "indicatorGroupPetya",
+                        circleId: "indicatorPetya",
+                        labelId: "indicatorLabelPetya"
+                    },
+                    sliders: [
+                        { id: "legs", domId: "legsInputPetya", label: "Длина ног", value: 70 },
+                        { id: "muscle", domId: "muscleInputPetya", label: "Сила мышц", value: 60 }
+                    ],
+                    mapping: { xSliderId: "legs", ySliderId: "muscle" }
+                },
+                {
+                    id: "sveta",
+                    pointId: "sveta_point",
+                    name: "Скуф",
+                    color: "#ff4ac3",
+                    fill: "#ffd7f5",
+                    labelColor: "#ffb3e9",
+                    screenId: "mainScreenSveta",
+                    speedDisplayId: "speedDisplaySveta",
+                    indicatorIds: {
+                        groupId: "indicatorGroupSveta",
+                        circleId: "indicatorSveta",
+                        labelId: "indicatorLabelSveta"
+                    },
+                    sliders: [
+                        { id: "legs", domId: "legsInputSveta", label: "Длина ног", value: 68 },
+                        { id: "muscle", domId: "muscleInputSveta", label: "Сила мышц", value: 25 }
+                    ],
+                    mapping: { xSliderId: "legs", ySliderId: "muscle" }
+                }
+            ]
+        };
+
+        const engine = DemoEngine.mount({
+            sceneConfig,
+            timeline: [],
+            autoPlayTimeline: true
+        });
+
+        (function mountBackpackWidget() {
+            const root = document.getElementById("app");
+            const graphFrame = root.querySelector(".monitor-wrapper .screen-frame");
+            if (!root || !graphFrame) return;
+            const BACKPACK_OFFSET_X = 0;
+            const BACKPACK_OFFSET_Y = 0;
+
+            root.style.position = "relative";
+
+            const widget = document.createElement("div");
+            widget.className = "backpack-widget";
+            widget.innerHTML = `
+                <div class="channel">
+                    <div class="fader-track">
+                        <div class="fader-slot"></div>
+                        <input id="backpackInput" type="range" min="0" max="100" step="1" value="0" />
+                    </div>
+                    <div class="label">Рюкзак</div>
+                </div>
+            `;
+            root.appendChild(widget);
+
+            const input = widget.querySelector("#backpackInput");
+            input.addEventListener("input", () => {
+                engine.updateScene();
+            });
+
+            const positionWidget = () => {
+                const rootRect = root.getBoundingClientRect();
+                const graphRect = graphFrame.getBoundingClientRect();
+                const widgetRect = widget.getBoundingClientRect();
+
+                const freeLeft = graphRect.right - rootRect.left;
+                const freeWidth = Math.max(0, rootRect.right - graphRect.right);
+                const centeredLeft = freeLeft + ((freeWidth - widgetRect.width) / 2);
+                const safeLeft = Math.max(freeLeft + 12, centeredLeft);
+                const top = (graphRect.top - rootRect.top) + ((graphRect.height - widgetRect.height) / 2);
+
+                widget.style.left = `${safeLeft + BACKPACK_OFFSET_X}px`;
+                widget.style.top = `${Math.max(0, top + BACKPACK_OFFSET_Y)}px`;
+            };
+
+            positionWidget();
+            window.addEventListener("resize", positionWidget);
+            if (document.fonts?.ready) {
+                document.fonts.ready.then(positionWidget);
+            }
+
+            window.backpackSlider = {
+                getValue: () => Number(input.value),
+                setValue: (value) => {
+                    input.value = String(value);
+                    engine.updateScene();
+                }
+            };
+
+            const animateBackpack = () => {
+                const from = 0;
+                const to = 68;
+                const durationMs = 2000;
+                const startTs = performance.now();
+
+                const tick = (now) => {
+                    const t = Math.min(1, (now - startTs) / durationMs);
+                    const value = from + ((to - from) * t);
+                    window.backpackSlider.setValue(value);
+                    if (t < 1) {
+                        requestAnimationFrame(tick);
+                    }
+                };
+
+                requestAnimationFrame(tick);
+            };
+
+            window.setTimeout(animateBackpack, 24500);
+        })();
+    </script>
+</body>
+</html>

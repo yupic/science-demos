@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 9. Бег. Подгруппы</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const BASE_SVG_SIZE = 600;
+        const GRAPH_SIZE = 900;
+        const scaleToGraph = (value) => (value / BASE_SVG_SIZE) * GRAPH_SIZE;
+
+        const sceneConfig = {
+            meta: { mode: "graphOnly", title: "График 1080p" },
+            graph: {
+                size: GRAPH_SIZE,
+                axisYLabel: "Сила мышц",
+                axisXLabel: "Длина ног",
+                watermark: "",
+                arc: {
+                    startX: scaleToGraph(75),
+                    radius: scaleToGraph(525),
+                    endY: scaleToGraph(525)
+                }
+            },
+            points: [
+                {
+                    id: "petya",
+                    pointId: "petya_point",
+                    name: "Петя",
+                    color: "#00ff00",
+                    fill: "#ccffcc",
+                    labelColor: "#88ff88",
+                    indicatorIds: {
+                        groupId: "indicatorGroupPetya",
+                        circleId: "indicatorPetya",
+                        labelId: "indicatorLabelPetya"
+                    },
+                    x: 15,
+                    y: 55
+                },
+                {
+                    id: "sveta",
+                    name: "Света",
+                    color: "#ff4ac3",
+                    fill: "#ffd7f5",
+                    labelColor: "#ffb3e9",
+                    x: 62,
+                    y: 12
+                }
+            ]
+        };
+
+        DemoEngine.mount({
+            sceneConfig,
+            timeline: [],
+            autoPlayTimeline: false
+        });
+
+        const svg = document.querySelector("#app .chart-container svg");
+        const SVG_SIZE = sceneConfig.graph?.size ?? BASE_SVG_SIZE;
+        if (svg) {
+            const svgNs = "http://www.w3.org/2000/svg";
+            const subgroupDivider = document.createElementNS(svgNs, "line");
+            subgroupDivider.setAttribute("x1", String(scaleToGraph(228)));
+            subgroupDivider.setAttribute("y1", "0");
+            subgroupDivider.setAttribute("x2", String(scaleToGraph(228)));
+            subgroupDivider.setAttribute("y2", String(SVG_SIZE));
+            subgroupDivider.setAttribute("stroke", "#d8d84b");
+            subgroupDivider.setAttribute("stroke-width", "4");
+            subgroupDivider.setAttribute("stroke-dasharray", "8 8");
+            subgroupDivider.style.filter = "drop-shadow(2px 2px 2px #000)";
+
+            const createSubgroupLabel = (text, x, y) => {
+                const label = document.createElementNS(svgNs, "text");
+                label.setAttribute("x", String(x));
+                label.setAttribute("y", String(y));
+                label.setAttribute("class", "watermark-label");
+                label.setAttribute("text-anchor", "middle");
+                label.style.fontSize = "60px";
+                label.style.fill = "rgba(230, 245, 230, 0.2)";
+                label.style.letterSpacing = "4px";
+                label.textContent = text;
+                return label;
+            };
+
+            const subgroup1 = createSubgroupLabel("РСНС-1", toSvgX(19), toSvgY(3));
+            const subgroup2 = createSubgroupLabel("РСНС-2", toSvgX(69), toSvgY(3));
+
+            svg.append(subgroupDivider, subgroup1, subgroup2);
+        }
+
+        const NS = "http://www.w3.org/2000/svg";
+        const SEGMENT_POINT_COUNT = 100;
+        const SEGMENT_START_DELAY_MS = 23833;
+        const SEGMENT_APPEAR_DURATION_MS = 3000;
+        const LUNGS_PROBLEM_DELAY_MS = 39067;
+        const TARGET_X = 38;
+        const LUNGS_PROBLEM_X = 60;
+        const LUNGS_PROBLEM_Y = 60;
+        const SEGMENT_DOT_MIN_R = 3;
+        const SEGMENT_DOT_MAX_R = 5;
+
+        function toSvgX(x) {
+            return (x / 100) * SVG_SIZE;
+        }
+
+        function toSvgY(y) {
+            return SVG_SIZE - (y / 100) * SVG_SIZE;
+        }
+
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function randomNormal(mean, sd) {
+            let u = 0;
+            let v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+            return mean + (z * sd);
+        }
+
+        function shuffle(values) {
+            const result = values.slice();
+            for (let i = result.length - 1; i > 0; i -= 1) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [result[i], result[j]] = [result[j], result[i]];
+            }
+            return result;
+        }
+
+        function getLineYAtX(x, pointA, pointB) {
+            const dx = pointB.x - pointA.x;
+            if (dx === 0) return pointA.y;
+            const t = (x - pointA.x) / dx;
+            return lerp(pointA.y, pointB.y, t);
+        }
+
+        function isBelowThresholdLine(x, y) {
+            const px = toSvgX(x);
+            const py = toSvgY(y);
+            const dx = SVG_SIZE - px;
+            const dy = py;
+            const distanceToTopRight = Math.sqrt((dx * dx) + (dy * dy));
+            const arcRadiusPx = (sceneConfig.graph?.arc?.radius ?? scaleToGraph(525)) + scaleToGraph(10);
+            return distanceToTopRight > arcRadiusPx;
+        }
+
+        function generateFilteredPoints(targetCount) {
+            const accepted = [];
+            let attempts = 0;
+            const maxAttempts = 200000;
+
+            while (accepted.length < targetCount && attempts < maxAttempts) {
+                attempts += 1;
+                const x = randomNormal(50, 30);
+                const y = randomNormal(50, 30);
+                const xInRange = x > 16 && x < 60;
+                const yInRange = y > 17 && y < 54;
+                if (!xInRange || !yInRange) continue;
+                if (!isBelowThresholdLine(x, y)) continue;
+                accepted.push({ x, y });
+            }
+
+            return accepted;
+        }
+
+        function createSegmentPoint(x, y) {
+            const group = document.createElementNS(NS, "g");
+            group.setAttribute("class", "indicator-group");
+            group.setAttribute("transform", `translate(${toSvgX(x)}, ${toSvgY(y)})`);
+
+            const dot = document.createElementNS(NS, "circle");
+            dot.setAttribute("r", String(SEGMENT_DOT_MIN_R));
+            dot.setAttribute("cx", "0");
+            dot.setAttribute("cy", "0");
+            dot.setAttribute("class", "point-dot");
+            dot.setAttribute("stroke-width", "2");
+            dot.setAttribute("fill", "#e5eeff");
+            dot.setAttribute("stroke", "#a8bcff");
+            dot.style.color = "#a8bcff";
+            dot.style.animation = "segment-point-dot-pulse 1.5s infinite ease-in-out";
+
+            group.appendChild(dot);
+            return group;
+        }
+
+        function createMainPoint(name, x, y, colors = {}) {
+            const fill = colors.fill || "#fff8c4";
+            const stroke = colors.stroke || "#ffe766";
+            const labelColor = colors.labelColor || stroke;
+
+            const group = document.createElementNS(NS, "g");
+            group.setAttribute("class", "indicator-group");
+            group.setAttribute("transform", `translate(${toSvgX(x)}, ${toSvgY(y)})`);
+
+            const dot = document.createElementNS(NS, "circle");
+            dot.setAttribute("r", "12");
+            dot.setAttribute("cx", "0");
+            dot.setAttribute("cy", "0");
+            dot.setAttribute("class", "point-dot");
+            dot.setAttribute("fill", fill);
+            dot.setAttribute("stroke", stroke);
+            dot.style.color = stroke;
+
+            const label = document.createElementNS(NS, "text");
+            label.setAttribute("x", "0");
+            label.setAttribute("y", "-21");
+            label.setAttribute("class", "point-label");
+            label.setAttribute("fill", labelColor);
+            label.textContent = name;
+
+            group.appendChild(dot);
+            group.appendChild(label);
+            return group;
+        }
+
+        const petyaPoint = sceneConfig.points.find((point) => point.id === "petya");
+        const svetaPoint = sceneConfig.points.find((point) => point.id === "sveta");
+        const segmentLayer = document.createElementNS(NS, "g");
+        const targetPointLayer = document.createElementNS(NS, "g");
+
+        let animationStarted = false;
+        let animationStartTimerId = null;
+        let appearanceTimerIds = [];
+        let targetPointTimerId = null;
+
+        function clearGeneratedElements() {
+            if (animationStartTimerId !== null) {
+                window.clearTimeout(animationStartTimerId);
+                animationStartTimerId = null;
+            }
+            appearanceTimerIds.forEach((timerId) => window.clearTimeout(timerId));
+            appearanceTimerIds = [];
+            if (targetPointTimerId !== null) {
+                window.clearTimeout(targetPointTimerId);
+                targetPointTimerId = null;
+            }
+            segmentLayer.innerHTML = "";
+            targetPointLayer.innerHTML = "";
+            animationStarted = false;
+        }
+
+        function scheduleSegmentAnimation() {
+            if (animationStarted || animationStartTimerId !== null) return;
+            animationStartTimerId = window.setTimeout(() => {
+                animationStartTimerId = null;
+                runSegmentAnimation();
+            }, SEGMENT_START_DELAY_MS);
+        }
+
+        function runSegmentAnimation() {
+            if (!svg || !petyaPoint || !svetaPoint || animationStarted) return;
+            animationStarted = true;
+            segmentLayer.innerHTML = "";
+            targetPointLayer.innerHTML = "";
+
+            const acceptedPoints = generateFilteredPoints(SEGMENT_POINT_COUNT);
+            if (acceptedPoints.length < SEGMENT_POINT_COUNT) {
+                animationStarted = false;
+                return;
+            }
+            const randomOrder = shuffle(acceptedPoints);
+            const stepMs = SEGMENT_APPEAR_DURATION_MS / SEGMENT_POINT_COUNT;
+
+            randomOrder.forEach((point, index) => {
+                const timerId = window.setTimeout(() => {
+                    segmentLayer.appendChild(createSegmentPoint(point.x, point.y));
+                }, Math.round(index * stepMs));
+                appearanceTimerIds.push(timerId);
+            });
+
+            targetPointTimerId = window.setTimeout(() => {
+                const y = getLineYAtX(TARGET_X, petyaPoint, svetaPoint) - 7;
+                targetPointLayer.appendChild(createMainPoint("Маша", TARGET_X, y, {
+                    fill: "#E8EBFF",
+                    stroke: "#4968FF",
+                    labelColor: "#7C92FF"
+                }));
+
+                const lungsPointTimerId = window.setTimeout(() => {
+                    targetPointLayer.appendChild(createMainPoint("Проблема с лёгкими", LUNGS_PROBLEM_X, LUNGS_PROBLEM_Y, {
+                        fill: "#fff3c2",
+                        stroke: "#ffd24a",
+                        labelColor: "#ffec99",
+                    }));
+                }, LUNGS_PROBLEM_DELAY_MS);
+                appearanceTimerIds.push(lungsPointTimerId);
+            }, SEGMENT_APPEAR_DURATION_MS);
+        }
+
+        if (svg) {
+            const styleId = "segment-point-dot-style";
+            if (!document.getElementById(styleId)) {
+                const style = document.createElement("style");
+                style.id = styleId;
+                style.textContent = `
+                    @keyframes segment-point-dot-pulse {
+                        0% {
+                            r: ${SEGMENT_DOT_MIN_R}px;
+                            opacity: 0.82;
+                            stroke-width: 2;
+                            filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 5px currentColor);
+                        }
+                        50% {
+                            r: ${SEGMENT_DOT_MAX_R}px;
+                            opacity: 0.95;
+                            stroke-width: 2.6;
+                            filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 7px currentColor);
+                        }
+                        100% {
+                            r: ${SEGMENT_DOT_MIN_R}px;
+                            opacity: 0.82;
+                            stroke-width: 2;
+                            filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 5px currentColor);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            const firstMainPoint = svg.querySelector(".indicator-group[data-point-id]");
+            if (firstMainPoint) {
+                svg.insertBefore(segmentLayer, firstMainPoint);
+            } else {
+                svg.appendChild(segmentLayer);
+            }
+            // "Маша" должна быть выше вертикальной линии, поэтому держим слой последним в SVG.
+            svg.appendChild(targetPointLayer);
+            scheduleSegmentAnimation();
+
+            document.addEventListener("keydown", (event) => {
+                if (event.code === "Space") {
+                    scheduleSegmentAnimation();
+                }
+                if (event.code === "KeyR") {
+                    clearGeneratedElements();
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>

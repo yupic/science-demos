@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 3. Бег. Пульт + график + 2 и 4 чела</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const sceneConfig = {
+            meta: { mode: "graphEq", title: "Петя и Света" },
+            graph: {
+                size: 600,
+                axisYLabel: "Сила мышц",
+                axisXLabel: "Длина ног",
+                watermark: "РСНС",
+                gradientId: "cyberGradient"
+            },
+            controls: {
+                showControlsScreen: true,
+                sliderHeight: 210,
+                slidersPerRow: 2
+            },
+            speedPanel: {
+                type: "formula2d",
+                maxSpeed: 11,
+                thresholdSpeed: 100 / 13
+            },
+            points: [
+                {
+                    id: "masha",
+                    name: "Маша",
+                    color: "#4aa8ff",
+                    fill: "#d6ebff",
+                    labelColor: "#b6dbff",
+                    clampToRange: false,
+                    keepInsideTop: false,
+                    x: 50,
+                    y: 120
+                },
+                {
+                    id: "kolya",
+                    name: "Коля",
+                    color: "#ffd24a",
+                    fill: "#fff3c2",
+                    labelColor: "#ffec99",
+                    clampToRange: false,
+                    keepInsideTop: false,
+                    x: 50,
+                    y: 120
+                }
+            ],
+            people: [
+                {
+                    id: "petya",
+                    pointId: "petya_point",
+                    name: "Петя",
+                    color: "#00ff00",
+                    screenId: "mainScreenPetya",
+                    speedDisplayId: "speedDisplayPetya",
+                    indicatorIds: {
+                        groupId: "indicatorGroupPetya",
+                        circleId: "indicatorPetya",
+                        labelId: "indicatorLabelPetya"
+                    },
+                    sliders: [
+                        { id: "legs", domId: "legsInputPetya", label: "Длина ног", value: 50 },
+                        { id: "muscle", domId: "muscleInputPetya", label: "Сила мышц", value: 50 }
+                    ],
+                    mapping: { xSliderId: "legs", ySliderId: "muscle" }
+                },
+                {
+                    id: "sveta",
+                    pointId: "sveta_point",
+                    name: "Света",
+                    color: "#ff4ac3",
+                    fill: "#ffd7f5",
+                    labelColor: "#ffb3e9",
+                    screenId: "mainScreenSveta",
+                    speedDisplayId: "speedDisplaySveta",
+                    indicatorIds: {
+                        groupId: "indicatorGroupSveta",
+                        circleId: "indicatorSveta",
+                        labelId: "indicatorLabelSveta"
+                    },
+                    sliders: [
+                        { id: "legs", domId: "legsInputSveta", label: "Длина ног", value: 50 },
+                        { id: "muscle", domId: "muscleInputSveta", label: "Сила мышц", value: 50 }
+                    ],
+                    mapping: { xSliderId: "legs", ySliderId: "muscle" }
+                }
+            ]
+        };
+
+        const timeline = [
+            { action: "wait", duration: 2000 },
+            {
+                action: "move",
+                duration: 2000,
+                targets: [
+                    { personId: "petya", to: { x: 12, y: 70 } },
+                    { personId: "sveta", to: { x: 70, y: 12 } }
+                ]
+            },
+            { action: "wait", duration: 41000 },
+            {
+                action: "move",
+                duration: 2000,
+                targets: [
+                    { pointId: "masha", to: { x: 22, y: 74 } },
+                    { pointId: "kolya", to: { x: 74, y: 22 } }
+                ]
+            },
+        ];
+
+        DemoEngine.mount({
+            sceneConfig,
+            timeline,
+            autoPlayTimeline: true
+        });
+    </script>
+</body>
+</html>

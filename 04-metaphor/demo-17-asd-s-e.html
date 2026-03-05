@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 17. РАС. Пульт Систематизация-Эмпатия</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const sceneConfig = {
+            meta: { mode: "eqOnly", title: "Системы" },
+            controls: {
+                showControlsScreen: true,
+                sliderHeight: 240,
+                slidersPerRow: 4,
+                sliderLabelFontSize: 28
+            },
+            speedPanel: {
+                type: "weighted",
+                baseSpeed: 8,
+                maxSpeed: 11,
+                thresholdSpeed: 100 / 13,
+                midSliderValue: 50,
+                sliderMax: 100,
+                invertSliderId: "system_1",
+                order: [
+                    "system_1",
+                    "system_2",
+                    "system_4",
+                    "system_6",
+                    "system_9",
+                    "system_5",
+                    "system_11",
+                    "system_12",
+                    "system_10",
+                    "system_3",
+                    "system_7",
+                    "system_8"
+                ],
+                weights: [3, 3, 1, 3, 1, 1, 2, 2, 1, 1, 3, 1],
+                formatter: ({ speed, thresholdSpeed }) =>
+                    speed > thresholdSpeed ? "Аутизм: нет" : "Аутизм: есть"
+            },
+            people: [
+                {
+                    id: "systems",
+                    name: "Системы",
+                    screenId: "mainScreen",
+                    speedDisplayId: "speedDisplay",
+                    sliders: Array.from({ length: 12 }, (_, idx) => ({
+                        id: `system_${idx + 1}`,
+                        label: idx === 0 ? "Система-тизация" : idx === 1 ? "Эмпатия" : `Система ${idx + 1}`,
+                        value: 50
+                    })),
+                    mapping: { xSliderId: "system_1", ySliderId: "system_2" }
+                }
+            ]
+        };
+
+        const engine = DemoEngine.mount({
+            sceneConfig,
+            timeline: [],
+            autoPlayTimeline: false
+        });
+
+        const ONE_SHOT_DELAY_MS = 3000;
+        const ONE_SHOT_MOVE_MS = 900;
+        const TARGET_PERSON_ID = "systems";
+        const START_VALUE = 50;
+        const OTHER_END_VALUES = [55, 45, 55, 45, 55, 45, 55, 45, 55, 45];
+        const END_VALUES = [90, 10, ...OTHER_END_VALUES];
+        const sliderIds = sceneConfig.people
+            .find((person) => person.id === TARGET_PERSON_ID)
+            .sliders
+            .map((slider) => slider.id);
+
+        let oneShotStarted = false;
+
+        function setAllSliders(value) {
+            sliderIds.forEach((sliderId) => {
+                engine.setSlider(TARGET_PERSON_ID, sliderId, value);
+            });
+        }
+
+        function animateAllSliders(fromValue, toValues, duration) {
+            const startTime = performance.now();
+
+            function frame(now) {
+                const t = Math.min((now - startTime) / duration, 1);
+                sliderIds.forEach((sliderId, index) => {
+                    const toValue = toValues[index] ?? fromValue;
+                    const value = fromValue + (toValue - fromValue) * t;
+                    engine.setSlider(TARGET_PERSON_ID, sliderId, value);
+                });
+                if (t < 1) requestAnimationFrame(frame);
+            }
+
+            requestAnimationFrame(frame);
+        }
+
+        function playOneShot() {
+            if (oneShotStarted) return;
+            oneShotStarted = true;
+            setAllSliders(START_VALUE);
+            window.setTimeout(() => {
+                animateAllSliders(START_VALUE, END_VALUES, ONE_SHOT_MOVE_MS);
+            }, ONE_SHOT_DELAY_MS);
+        }
+
+        playOneShot();
+    </script>
+</body>
+</html>

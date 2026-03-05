@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 5. РАС. Пульт + график + 1 чел</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const sceneConfig = {
+            meta: { mode: "graphEq", title: "Петя" },
+            graph: {
+                size: 600,
+                axisXLabel: "Система 1",
+                axisYLabel: "Система 2",
+                watermark: "Аутизм",
+                gradientId: "cyberGradient"
+            },
+            controls: {
+                showControlsScreen: true,
+                sliderHeight: 210,
+                slidersPerRow: 2
+            },
+            speedPanel: {
+                type: "formula2d",
+                maxSpeed: 11,
+                thresholdSpeed: 100 / 13,
+                formatter: ({ speed, thresholdSpeed }) =>
+                    speed > thresholdSpeed ? "Петя: нет аутизма" : "Петя: есть аутизм"
+            },
+            people: [
+                {
+                    id: "petya",
+                    pointId: "petya_point",
+                    name: "Петя",
+                    color: "#00ff00",
+                    screenId: "mainScreen",
+                    speedDisplayId: "speedDisplay",
+                    indicatorIds: {
+                        groupId: "indicatorGroup",
+                        circleId: "indicator",
+                        labelId: "indicatorLabel"
+                    },
+                    sliders: [
+                        { id: "muscle", domId: "muscleInput", label: "Система 1", value: 50 },
+                        { id: "legs", domId: "legsInput", label: "Система 2", value: 50 }
+                    ],
+                    mapping: { xSliderId: "legs", ySliderId: "muscle" }
+                }
+            ]
+        };
+
+        const timeline = [
+            { action: "wait", duration: 2000 },
+            { action: "move", duration: 2000, target: { personId: "petya", to: { x: 40, y: 20 } } }
+        ];
+
+        DemoEngine.mount({
+            sceneConfig,
+            timeline,
+            autoPlayTimeline: true
+        });
+    </script>
+</body>
+</html>
