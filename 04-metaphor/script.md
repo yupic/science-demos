@@ -1,7 +1,15 @@
 ﻿---
-title: Сценарий
+title: Видео 4. Сценарий
 permalink: /04-metaphor/script.html
+layout: plain
 ---
+Это полный сценарий, по которому было снято видео: [https://www.youtube.com/watch?v=IlVt0gUD2G8](https://www.youtube.com/watch?v=IlVt0gUD2G8).
+
+← [Назад к материалам видео](/science-demos/04-metaphor/)  
+← [На главную](/science-demos/)
+
+---
+
 # Оглавление
 * TOC
 {:toc}

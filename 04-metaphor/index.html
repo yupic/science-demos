@@ -171,19 +171,19 @@
     }
 
     .resource-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
       display: flex;
       align-items: center;
-      padding: 16px;
-      background: #f1f5f9; /* Светло-серый фон */
-      border-radius: 12px;
-      border: 1px dashed #cbd5e1;
       text-decoration: none !important;
       transition: all 0.2s;
     }
 
     .resource-item:hover {
-      background: #e2e8f0;
-      border-style: solid;
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
       border-color: var(--primary-color);
     }
 
@@ -200,7 +200,6 @@
     .resource-title {
       font-size: 20px;
       font-weight: 600;
-      color: var(--text-main);
     }
   </style>
 </head>
