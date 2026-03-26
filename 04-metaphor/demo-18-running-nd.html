@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru" class="-no-animations">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо 18. Бег. Нормальное распределение</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./runtime/demo-engine.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="./runtime/demo-engine.js"></script>
+    <script>
+        const BASE_SVG_SIZE = 600;
+        const GRAPH_SIZE = 900;
+        const scaleToGraph = (value) => (value / BASE_SVG_SIZE) * GRAPH_SIZE;
+
+        const sceneConfig = {
+            meta: { mode: "graphOnly", title: "График 1080p" },
+            graph: {
+                size: GRAPH_SIZE,
+                axisYLabel: "Сила мышц",
+                axisXLabel: "Длина ног",
+                watermark: "РСНС",
+                arc: {
+                    startX: scaleToGraph(75),
+                    radius: scaleToGraph(525),
+                    endY: scaleToGraph(525)
+                }
+            }
+        };
+
+        DemoEngine.mount({
+            sceneConfig,
+            timeline: [],
+            autoPlayTimeline: false
+        });
+
+        const device = document.getElementById("app");
+
+        function randomNormal(mean, sd) {
+            let u = 0;
+            let v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+            return mean + z * sd;
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        const SVG_SIZE = sceneConfig.graph?.size ?? BASE_SVG_SIZE;
+
+        function toSvgX(x) {
+            return (x / 100) * SVG_SIZE;
+        }
+
+        function toSvgY(y) {
+            return SVG_SIZE - (y / 100) * SVG_SIZE;
+        }
+
+        const svg = document.querySelector("#app .chart-container svg");
+        const NS = "http://www.w3.org/2000/svg";
+
+        if (svg) {
+            function drawBottomLeftCenteredArc(targetSvg) {
+                const centerX = 0;
+                const centerY = SVG_SIZE;
+                const radius = SVG_SIZE * 1.05;
+                const startAngleDeg = 90;
+                const endAngleDeg = 0;
+                const toRad = (deg) => (deg * Math.PI) / 180;
+
+                const startX = centerX + radius * Math.cos(toRad(startAngleDeg));
+                const startY = centerY - radius * Math.sin(toRad(startAngleDeg));
+                const endX = centerX + radius * Math.cos(toRad(endAngleDeg));
+                const endY = centerY - radius * Math.sin(toRad(endAngleDeg));
+
+                const arc = document.createElementNS(NS, "path");
+                arc.setAttribute("d", `M ${startX},${startY} A ${radius},${radius} 0 0,1 ${endX},${endY}`);
+                arc.setAttribute("fill", "none");
+                arc.setAttribute("class", "threshold-line");
+                targetSvg.appendChild(arc);
+            }
+
+            function drawTriangleUp(cx, cy, size, color) {
+                const halfBase = size * 0.866;
+                const triangle = document.createElementNS(NS, "polygon");
+                const points = [
+                    `${cx},${cy - size}`,
+                    `${cx - halfBase},${cy + size * 0.5}`,
+                    `${cx + halfBase},${cy + size * 0.5}`
+                ].join(" ");
+                triangle.setAttribute("points", points);
+                triangle.setAttribute("fill", color);
+                svg.appendChild(triangle);
+            }
+
+            function createGroupPoints(pointCount, distribution, color, shape) {
+                const points = [];
+                for (let i = 0; i < pointCount; i += 1) {
+                    const x = clamp(randomNormal(distribution.meanX, distribution.sdX), 0, 100);
+                    const y = clamp(randomNormal(distribution.meanY, distribution.sdY), 0, 100);
+                    points.push({
+                        px: toSvgX(x),
+                        py: toSvgY(y),
+                        color,
+                        shape
+                    });
+                }
+                return points;
+            }
+
+            function appendPoint(point, targetSvg) {
+                if (point.shape === "triangleUp") {
+                    drawTriangleUp(point.px, point.py, 5, point.color);
+                    return;
+                }
+                const dot = document.createElementNS(NS, "circle");
+                dot.setAttribute("cx", String(point.px));
+                dot.setAttribute("cy", String(point.py));
+                dot.setAttribute("r", "3");
+                dot.setAttribute("fill", point.color);
+                targetSvg.appendChild(dot);
+            }
+
+            function normalPdf(value, mean, sd) {
+                const safeSd = Math.max(sd, 0.0001);
+                const z = (value - mean) / safeSd;
+                return Math.exp(-0.5 * z * z) / (safeSd * Math.sqrt(2 * Math.PI));
+            }
+
+            function drawDensityCurves(targetSvg, params) {
+                const densityLayer = document.createElementNS(NS, "g");
+                densityLayer.setAttribute("class", "density-layer");
+
+                const sampleCount = 200;
+                const xMean = toSvgX(params.meanX);
+                const yMean = toSvgY(params.meanY);
+                const xSd = (params.sdX / 100) * SVG_SIZE;
+                const ySd = (params.sdY / 100) * SVG_SIZE;
+                const maxHeight = SVG_SIZE / 5;
+                const xBaseY = SVG_SIZE;
+                const yBaseX = 0;
+
+                const xPeak = normalPdf(xMean, xMean, xSd);
+                const yPeak = normalPdf(yMean, yMean, ySd);
+
+                const xCurvePath = Array.from({ length: sampleCount + 1 }, (_, i) => {
+                    const x = (SVG_SIZE * i) / sampleCount;
+                    const density = normalPdf(x, xMean, xSd);
+                    const y = xBaseY - (density / xPeak) * maxHeight;
+                    return `${i === 0 ? "M" : "L"} ${x},${y}`;
+                }).join(" ");
+
+                const yCurvePath = Array.from({ length: sampleCount + 1 }, (_, i) => {
+                    const y = (SVG_SIZE * i) / sampleCount;
+                    const density = normalPdf(y, yMean, ySd);
+                    const x = yBaseX + (density / yPeak) * maxHeight;
+                    return `${i === 0 ? "M" : "L"} ${x},${y}`;
+                }).join(" ");
+
+                const xFillPath = document.createElementNS(NS, "path");
+                xFillPath.setAttribute("d", `M 0,${xBaseY} ${xCurvePath} L ${SVG_SIZE},${xBaseY} Z`);
+                xFillPath.setAttribute("fill", "rgba(98, 165, 235, 0.28)");
+                xFillPath.setAttribute("stroke", "none");
+
+                const xPath = document.createElementNS(NS, "path");
+                xPath.setAttribute("d", xCurvePath);
+                xPath.setAttribute("fill", "none");
+                xPath.setAttribute("stroke", "rgba(98, 165, 235, 0.95)");
+                xPath.setAttribute("stroke-width", "4");
+
+                const yFillPath = document.createElementNS(NS, "path");
+                yFillPath.setAttribute("d", `M ${yBaseX},0 ${yCurvePath} L ${yBaseX},${SVG_SIZE} Z`);
+                yFillPath.setAttribute("fill", "rgba(255, 120, 190, 0.28)");
+                yFillPath.setAttribute("stroke", "none");
+
+                const yPath = document.createElementNS(NS, "path");
+                yPath.setAttribute("d", yCurvePath);
+                yPath.setAttribute("fill", "none");
+                yPath.setAttribute("stroke", "rgba(255, 120, 190, 0.95)");
+                yPath.setAttribute("stroke-width", "4");
+
+                densityLayer.appendChild(xFillPath);
+                densityLayer.appendChild(xPath);
+                densityLayer.appendChild(yFillPath);
+                densityLayer.appendChild(yPath);
+                targetSvg.appendChild(densityLayer);
+            }
+
+            function buildProjectionLayer(targetSvg, pointsData, params) {
+                const xMean = toSvgX(params.meanX);
+                const yMean = toSvgY(params.meanY);
+                const xSd = (params.sdX / 100) * SVG_SIZE;
+                const ySd = (params.sdY / 100) * SVG_SIZE;
+                const maxHeight = SVG_SIZE / 5;
+                const xBaseY = SVG_SIZE;
+                const yBaseX = 0;
+                const xPeak = normalPdf(xMean, xMean, xSd);
+                const yPeak = normalPdf(yMean, yMean, ySd);
+
+                const projectionLayer = document.createElementNS(NS, "g");
+                projectionLayer.setAttribute("class", "projection-layer");
+                targetSvg.appendChild(projectionLayer);
+
+                const traces = pointsData.map((point) => {
+                    const xDensity = normalPdf(point.px, xMean, xSd);
+                    const xCurveY = xBaseY - (xDensity / xPeak) * maxHeight;
+                    const startXFromBottom = point.px;
+                    const startYFromBottom = xCurveY + Math.random() * (xBaseY - xCurveY);
+
+                    const yDensity = normalPdf(point.py, yMean, ySd);
+                    const yCurveX = yBaseX + (yDensity / yPeak) * maxHeight;
+                    const startXFromLeft = yBaseX + Math.random() * (yCurveX - yBaseX);
+                    const startYFromLeft = point.py;
+
+                    const dotFromBottom = document.createElementNS(NS, "circle");
+                    dotFromBottom.setAttribute("cx", String(startXFromBottom));
+                    dotFromBottom.setAttribute("cy", String(startYFromBottom));
+                    dotFromBottom.setAttribute("r", "2.6");
+                    dotFromBottom.setAttribute("fill", "rgba(98, 165, 235, 0.7)");
+
+                    const dotFromLeft = document.createElementNS(NS, "circle");
+                    dotFromLeft.setAttribute("cx", String(startXFromLeft));
+                    dotFromLeft.setAttribute("cy", String(startYFromLeft));
+                    dotFromLeft.setAttribute("r", "2.6");
+                    dotFromLeft.setAttribute("fill", "rgba(255, 120, 190, 0.7)");
+
+                    projectionLayer.appendChild(dotFromBottom);
+                    projectionLayer.appendChild(dotFromLeft);
+
+                    return {
+                        targetX: point.px,
+                        targetY: point.py,
+                        startXFromBottom,
+                        startYFromBottom,
+                        startXFromLeft,
+                        startYFromLeft,
+                        dotFromBottom,
+                        dotFromLeft
+                    };
+                });
+
+                return { projectionLayer, traces };
+            }
+
+            drawBottomLeftCenteredArc(svg);
+
+            const distributionParams = {
+                meanX: 55,
+                sdX: 15,
+                meanY: 55,
+                sdY: 15
+            };
+
+            const points = createGroupPoints(
+                4000,
+                distributionParams,
+                "rgba(130, 200, 255, 0.62)",
+                "circle"
+            );
+            //drawDensityCurves(svg, distributionParams);
+
+            const animationState = {
+                mode: "idle",
+                rafId: null,
+                token: 0,
+                projectionLayer: null,
+                traces: []
+            };
+
+            function resetScene() {
+                if (animationState.rafId !== null) {
+                    cancelAnimationFrame(animationState.rafId);
+                    animationState.rafId = null;
+                }
+                animationState.token += 1;
+                if (animationState.projectionLayer) {
+                    animationState.projectionLayer.remove();
+                }
+                const projection = buildProjectionLayer(svg, points, distributionParams);
+                animationState.projectionLayer = projection.projectionLayer;
+                animationState.traces = projection.traces;
+                animationState.mode = "idle";
+            }
+
+            function startAnimation() {
+                if (animationState.mode !== "idle") return;
+
+                const holdMs = 700;
+                const moveMs = 2600;
+                const localToken = animationState.token;
+                const moveStartAt = performance.now() + holdMs;
+                animationState.mode = "animating";
+
+                function tick(now) {
+                    if (localToken !== animationState.token) return;
+
+                    const progress = Math.min(Math.max((now - moveStartAt) / moveMs, 0), 1);
+                    const eased = 1 - (1 - progress) ** 3;
+
+                    animationState.traces.forEach((trace) => {
+                        const x1 = trace.startXFromBottom + (trace.targetX - trace.startXFromBottom) * eased;
+                        const y1 = trace.startYFromBottom + (trace.targetY - trace.startYFromBottom) * eased;
+                        const x2 = trace.startXFromLeft + (trace.targetX - trace.startXFromLeft) * eased;
+                        const y2 = trace.startYFromLeft + (trace.targetY - trace.startYFromLeft) * eased;
+
+                        trace.dotFromBottom.setAttribute("cx", String(x1));
+                        trace.dotFromBottom.setAttribute("cy", String(y1));
+                        trace.dotFromLeft.setAttribute("cx", String(x2));
+                        trace.dotFromLeft.setAttribute("cy", String(y2));
+                    });
+
+                    if (progress < 1) {
+                        animationState.rafId = requestAnimationFrame(tick);
+                        return;
+                    }
+
+                    animationState.traces.forEach((trace) => {
+                        trace.dotFromBottom.setAttribute("fill", "rgba(130, 200, 255, 0.62)");
+                        trace.dotFromBottom.setAttribute("r", "3");
+                        trace.dotFromLeft.remove();
+                    });
+                    animationState.rafId = null;
+                    animationState.mode = "done";
+                }
+
+                animationState.rafId = requestAnimationFrame(tick);
+            }
+
+            function handleInteraction() {
+                if (animationState.mode === "idle") {
+                    startAnimation();
+                    return;
+                }
+                resetScene();
+            }
+
+            resetScene();
+            svg.style.cursor = "pointer";
+            device.style.cursor = "pointer";
+            device.addEventListener("pointerdown", handleInteraction);
+        }
+    </script>
+</body>
+</html>
