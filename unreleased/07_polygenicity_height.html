@@ -38,11 +38,11 @@ License: MIT
     </label>
     <label class="check-label"><input id="randomFrequencies" type="checkbox" /> Случайные частоты аллелей</label> |
     <label class="check-label"><input id="randomEffects" type="checkbox" /> Случайные эффекты аллелей |</label>
-    <label class="mut-label">Точность расчёта:
+    <label class="mut-label">Точность отображения:
       <select id="precisionSelect">
-        <option value="1">1 см</option>
+        <option value="1" selected>1 см</option>
         <option value="10">0,1 см</option>
-        <option value="100" selected>0,01 см</option>
+        <option value="100">0,01 см</option>
       </select>
     </label>
     <button id="regenBtn" type="button">Обновить</button>
@@ -56,7 +56,7 @@ License: MIT
       <ol id="effectsList" class="effect-list"></ol>
     </section>
     <section>
-      <p class="chart-title">Вероятность каждого значения роста</p>
+      <p class="chart-title">Распределение вероятностей роста</p>
       <div class="canvas-frame"><canvas id="heightCanvas"></canvas></div>
     </section>
   </div>
@@ -94,11 +94,11 @@ License: MIT
   let settingsKey = '';
   let frequencies = [];
   let rawEffectUnits = [];
-  let effectUnits = [];
-  let effectUnitsPerCm = 100;
+  let lastRandomEffectPrecision = '1';
   let currentDistribution = [];
   let phenotypeGenotypeCounts = [];
   let possiblePhenotypeCount = 0;
+  let displayCache = null;
   let lastDraw = null;
   let hoverIndex = null;
 
@@ -117,13 +117,8 @@ License: MIT
     return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace('.', ',');
   }
 
-  function formatRandomEffect(value) {
-    const decimals = Math.round(Math.log10(effectUnitsPerCm));
-    return value.toFixed(decimals).replace('.', ',');
-  }
-
   function formatHeight(value) {
-    return value.toFixed(Math.round(Math.log10(effectUnitsPerCm))).replace('.', ',');
+    return value.toFixed(2).replace('.', ',');
   }
 
   function formatPercent(probability) {
@@ -157,22 +152,9 @@ License: MIT
     return units;
   }
 
-  // Precision experiment: source effects remain unchanged; only their calculation grid changes.
-  function updateCalculationPrecision() {
-    effectUnitsPerCm = Number(precisionSelect.value);
-    if (!randomEffects.checked) {
-      effectUnits = null;
-      return;
-    }
-    const totalUnits = TOTAL_EFFECT * effectUnitsPerCm;
-    const quotas = rawEffectUnits.map((units) => (units * effectUnitsPerCm) / SOURCE_EFFECT_UNITS_PER_CM);
-    effectUnits = quotas.map((quota) => Math.floor(quota));
-    let remainder = totalUnits - effectUnits.reduce((sum, units) => sum + units, 0);
-    quotas
-      .map((quota, index) => ({ index, fraction: quota - Math.floor(quota) }))
-      .sort((a, b) => b.fraction - a.fraction)
-      .slice(0, remainder)
-      .forEach(({ index }) => { effectUnits[index] += 1; });
+  function syncPrecisionControl() {
+    precisionSelect.disabled = !randomEffects.checked;
+    if (!randomEffects.checked) precisionSelect.value = String(SOURCE_EFFECT_UNITS_PER_CM);
   }
 
   function refreshParameters(n) {
@@ -188,9 +170,7 @@ License: MIT
   }
 
   function calculateDistribution(n) {
-    // With equal effects, sum exact allele-count probabilities into the selected
-    // height grid. This preserves total probability while making the selected
-    // calculation precision determine the visible phenotype buckets.
+    // The model always uses hundredths of a centimeter. Display precision is applied later.
     if (!randomEffects.checked) {
       let probabilities = [1];
       for (const p of frequencies) {
@@ -201,14 +181,14 @@ License: MIT
         });
         probabilities = next;
       }
-      const binnedProbabilities = new Array(TOTAL_EFFECT * effectUnitsPerCm + 1).fill(0);
+      const binnedProbabilities = new Array(TOTAL_EFFECT * SOURCE_EFFECT_UNITS_PER_CM + 1).fill(0);
       probabilities.forEach((probability, count) => {
-        const units = Math.round((TOTAL_EFFECT * effectUnitsPerCm * count) / n);
+        const units = Math.round((TOTAL_EFFECT * SOURCE_EFFECT_UNITS_PER_CM * count) / n);
         binnedProbabilities[units] += probability;
       });
       return binnedProbabilities
         .map((probability, units) => ({
-          height: BASE_HEIGHT + units / effectUnitsPerCm,
+          height: BASE_HEIGHT + units / SOURCE_EFFECT_UNITS_PER_CM,
           probability,
           units
         }))
@@ -217,7 +197,7 @@ License: MIT
 
     let probabilities = [1];
     for (let locus = 0; locus < n; locus += 1) {
-      const effect = effectUnits[locus];
+      const effect = rawEffectUnits[locus];
       const p = frequencies[locus];
       const next = new Array(probabilities.length + effect).fill(0);
       probabilities.forEach((probability, units) => {
@@ -227,7 +207,7 @@ License: MIT
       probabilities = next;
     }
     return probabilities.map((probability, units) => ({
-      height: BASE_HEIGHT + units / effectUnitsPerCm,
+      height: BASE_HEIGHT + units / SOURCE_EFFECT_UNITS_PER_CM,
       probability,
       units
     })).filter((entry) => entry.probability > 0 /*1e-15*/);
@@ -235,7 +215,7 @@ License: MIT
 
   function calculatePhenotypeGenotypeCounts(n) {
     if (!randomEffects.checked) {
-      const counts = new Array(TOTAL_EFFECT * effectUnitsPerCm + 1).fill(0n);
+      const counts = new Array(TOTAL_EFFECT * SOURCE_EFFECT_UNITS_PER_CM + 1).fill(0n);
       let exactCounts = [1n];
       for (let locus = 0; locus < n; locus += 1) {
         const next = new Array(exactCounts.length + 1).fill(0n);
@@ -246,16 +226,15 @@ License: MIT
         exactCounts = next;
       }
       exactCounts.forEach((count, alleles) => {
-        const units = Math.round((TOTAL_EFFECT * effectUnitsPerCm * alleles) / n);
+        const units = Math.round((TOTAL_EFFECT * SOURCE_EFFECT_UNITS_PER_CM * alleles) / n);
         counts[units] += count;
       });
       return counts;
     }
-    const totalUnits = randomEffects.checked ? TOTAL_EFFECT * effectUnitsPerCm : n;
-    const effects = randomEffects.checked ? effectUnits : new Array(n).fill(1);
+    const totalUnits = TOTAL_EFFECT * SOURCE_EFFECT_UNITS_PER_CM;
     const counts = new Array(totalUnits + 1).fill(0n);
     counts[0] = 1n;
-    for (const effect of effects) {
+    for (const effect of rawEffectUnits) {
       for (let units = totalUnits - effect; units >= 0; units -= 1) {
         if (counts[units] !== 0n) counts[units + effect] += counts[units];
       }
@@ -267,13 +246,13 @@ License: MIT
     if (!randomEffects.checked) {
       const phenotypeUnits = new Set();
       for (let alleles = 0; alleles <= n; alleles += 1) {
-        phenotypeUnits.add(Math.round((TOTAL_EFFECT * effectUnitsPerCm * alleles) / n));
+        phenotypeUnits.add(Math.round((TOTAL_EFFECT * SOURCE_EFFECT_UNITS_PER_CM * alleles) / n));
       }
       return phenotypeUnits.size;
     }
-    const reachable = new Array(TOTAL_EFFECT * effectUnitsPerCm + 1).fill(false);
+    const reachable = new Array(TOTAL_EFFECT * SOURCE_EFFECT_UNITS_PER_CM + 1).fill(false);
     reachable[0] = true;
-    for (const effect of effectUnits) {
+    for (const effect of rawEffectUnits) {
       for (let units = reachable.length - 1 - effect; units >= 0; units -= 1) {
         if (reachable[units]) reachable[units + effect] = true;
       }
@@ -285,10 +264,10 @@ License: MIT
     const n = clampCount(countRange.value);
     const genotypeCount = formatBigIntCount(2n ** BigInt(n));
     const mean = currentDistribution.reduce((sum, item) => sum + item.height * item.probability, 0);
-    const hovered = hoverIndex === null ? null : lastDraw?.sorted[hoverIndex];
-    const valueText = hovered ? `${formatHeight(hovered.height)} см` : '—';
+    const hovered = hoverIndex === null ? null : lastDraw?.bars[hoverIndex];
+    const valueText = hovered ? hovered.label : '—';
     const probabilityText = hovered ? formatPercent(hovered.probability) : '—';
-    const matchingGenotypes = hovered ? formatBigIntCount(phenotypeGenotypeCounts[hovered.units]) : '—';
+    const matchingGenotypes = hovered ? formatBigIntCount(hovered.genotypes) : '—';
     statsLine.innerHTML =
       `Кол-во генотипов: <span class="value-strong">${genotypeCount}</span>` +
       ` | Кол-во фенотипов: <span class="value-strong">${possiblePhenotypeCount.toLocaleString('ru-RU')}</span>` +
@@ -311,8 +290,95 @@ License: MIT
     return `${(tenths / 10).toFixed(1).replace('.', ',')}×10${toSuperscript(exponent)}`;
   }
 
+  function buildDisplayBars(xForHeight, innerWidth, dpr, xRange) {
+    const precision = Number(precisionSelect.value);
+    const stepUnits = SOURCE_EFFECT_UNITS_PER_CM / precision;
+    const decimals = Math.round(Math.log10(precision));
+    // Merge neighboring display cells when their grid step is narrower than a physical pixel.
+    const pixelBins = randomEffects.checked && precision > 1
+      && stepUnits * innerWidth * dpr < SOURCE_EFFECT_UNITS_PER_CM * xRange;
+    const roundedBins = new Map();
+    for (const item of currentDistribution) {
+      const roundedUnits = Math.round(item.units / stepUnits) * stepUnits;
+      let bin = roundedBins.get(roundedUnits);
+      if (!bin) {
+        bin = { index: roundedUnits / stepUnits, centerUnits: roundedUnits,
+          probability: 0, genotypes: 0n };
+        roundedBins.set(roundedUnits, bin);
+      }
+      bin.probability += item.probability;
+      bin.genotypes += phenotypeGenotypeCounts[item.units];
+    }
+
+    let bins = Array.from(roundedBins.values());
+    if (pixelBins) {
+      const displayedGenotypes = bins.reduce((sum, bin) => sum + bin.genotypes, 0n);
+      const scale = 1_000_000_000n;
+      const pixels = new Map();
+      for (const bin of bins) {
+        const center = BASE_HEIGHT + bin.centerUnits / SOURCE_EFFECT_UNITS_PER_CM;
+        const halfStep = stepUnits / (2 * SOURCE_EFFECT_UNITS_PER_CM);
+        const leftPx = xForHeight(center - halfStep) * dpr;
+        const rightPx = xForHeight(center + halfStep) * dpr;
+        const lastPixel = Math.ceil(rightPx) - 1;
+        let allocated = 0n;
+        for (let pixel = Math.floor(leftPx); pixel <= lastPixel; pixel += 1) {
+          const overlap = Math.max(0, Math.min(rightPx, pixel + 1) - Math.max(leftPx, pixel));
+          if (overlap === 0) continue;
+          const fraction = overlap / (rightPx - leftPx);
+          const weight = pixel === lastPixel ? scale - allocated : BigInt(Math.round(fraction * Number(scale)));
+          allocated += weight;
+          let target = pixels.get(pixel);
+          if (!target) {
+            target = { index: pixel, minUnits: bin.centerUnits, probability: 0, weightedGenotypes: 0n };
+            pixels.set(pixel, target);
+          }
+          target.minUnits = Math.min(target.minUnits, bin.centerUnits);
+          target.probability += bin.probability * fraction;
+          target.weightedGenotypes += bin.genotypes * weight;
+        }
+      }
+      bins = Array.from(pixels.values());
+      let assigned = 0n;
+      for (const bin of bins) {
+        bin.genotypes = bin.weightedGenotypes / scale;
+        bin.remainder = bin.weightedGenotypes % scale;
+        assigned += bin.genotypes;
+      }
+      const missing = displayedGenotypes - assigned;
+      bins.slice().sort((a, b) => a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1)
+        .slice(0, Number(missing)).forEach((bin) => { bin.genotypes += 1n; });
+    }
+
+    const minGapUnits = !randomEffects.checked && currentDistribution.length > 1
+      ? Math.min(...currentDistribution.slice(1).map((item, i) => item.units - currentDistribution[i].units))
+      : TOTAL_EFFECT * SOURCE_EFFECT_UNITS_PER_CM;
+    const barWidthCm = !randomEffects.checked
+      ? Math.min(1, minGapUnits / SOURCE_EFFECT_UNITS_PER_CM) * 0.9
+      : (stepUnits / SOURCE_EFFECT_UNITS_PER_CM) * (precision === 1 ? 0.9 : 1);
+    const formatUnit = (units) => (BASE_HEIGHT + units / SOURCE_EFFECT_UNITS_PER_CM)
+      .toFixed(decimals).replace('.', ',');
+    return bins.sort((a, b) => a.index - b.index).map((bin) => {
+      let left;
+      let right;
+      if (pixelBins) {
+        left = bin.index / dpr;
+        right = left + 1 / dpr;
+      } else if (randomEffects.checked && precision !== 1) {
+        // Shared edges snap to physical pixels, so adjacent fine-grid bars have no seams.
+        left = Math.round(xForHeight(BASE_HEIGHT + (bin.index - 0.5) * stepUnits / SOURCE_EFFECT_UNITS_PER_CM) * dpr) / dpr;
+        right = Math.round(xForHeight(BASE_HEIGHT + (bin.index + 0.5) * stepUnits / SOURCE_EFFECT_UNITS_PER_CM) * dpr) / dpr;
+      } else {
+        const center = BASE_HEIGHT + bin.centerUnits / SOURCE_EFFECT_UNITS_PER_CM;
+        left = xForHeight(center - barWidthCm / 2);
+        right = xForHeight(center + barWidthCm / 2);
+      }
+      return { ...bin, left, right, label: `${formatUnit(pixelBins ? bin.minUnits : bin.centerUnits)} см`,
+        approximate: pixelBins };
+    });
+  }
+
   function draw() {
-    const distribution = currentDistribution;
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
     const height = Math.max(310, Math.min(window.innerHeight * 0.62, 520));
@@ -325,18 +391,17 @@ License: MIT
     const margin = { left: 64, right: 16, top: 18, bottom: 52 };
     const innerWidth = displayWidth - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
-    const yMax = Math.max(...distribution.map((item) => item.probability), Number.EPSILON);
-    const sorted = distribution.slice().sort((a, b) => a.height - b.height);
-    const minGap = sorted.length > 1
-      ? Math.min(...sorted.slice(1).map((item, i) => item.height - sorted[i].height))
-      : TOTAL_EFFECT;
-    // A bar represents an exact phenotype, not a 1 cm interval.
-    // It may be up to 1 cm wide, but contracts for dense fractional values.
-    const barWidthCm = Math.min(1, minGap * 0.9);
-    const xMinEdge = BASE_HEIGHT - barWidthCm / 2;
-    const xMaxEdge = BASE_HEIGHT + TOTAL_EFFECT + barWidthCm / 2;
+    const xMinEdge = BASE_HEIGHT - 0.5;
+    const xMaxEdge = BASE_HEIGHT + TOTAL_EFFECT + 0.5;
     const xRange = xMaxEdge - xMinEdge;
     const xForHeight = (heightCm) => margin.left + ((heightCm - xMinEdge) / xRange) * innerWidth;
+    const precision = Number(precisionSelect.value);
+    if (!displayCache || displayCache.width !== displayWidth || displayCache.dpr !== dpr || displayCache.precision !== precision) {
+      displayCache = { width: displayWidth, dpr, precision,
+        bars: buildDisplayBars(xForHeight, innerWidth, dpr, xRange) };
+    }
+    const bars = displayCache.bars;
+    const yMax = Math.max(...bars.map((bar) => bar.probability), Number.EPSILON);
 
     ctx.fillStyle = '#f8f9fc';
     ctx.fillRect(margin.left, margin.top, innerWidth, innerHeight);
@@ -349,13 +414,11 @@ License: MIT
       ctx.fillText(`${((i / 4) * yMax * 100).toFixed(1).replace('.', ',')}%`, margin.left - 8, y);
     }
 
-    const barWidth = (barWidthCm / xRange) * innerWidth;
-    sorted.forEach((item, index) => {
-      const x = xForHeight(item.height);
-      const barHeight = item.probability / yMax * innerHeight;
+    bars.forEach((bar, index) => {
+      const barHeight = bar.probability / yMax * innerHeight;
       const isHovered = index === hoverIndex;
       ctx.fillStyle = isHovered ? '#e67e22' : '#2c7be5';
-      ctx.fillRect(x - barWidth / 2, margin.top + innerHeight - barHeight, barWidth, barHeight);
+      ctx.fillRect(bar.left, margin.top + innerHeight - barHeight, bar.right - bar.left, barHeight);
     });
 
     ctx.strokeStyle = '#999';
@@ -371,7 +434,7 @@ License: MIT
       ctx.fillText(text, x, margin.top + innerHeight + 7);
     });
     ctx.save(); ctx.translate(11, margin.top + innerHeight / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('Вероятность', 0, 0); ctx.restore();
-    lastDraw = { sorted, xForHeight, barWidth, left: margin.left, right: displayWidth - margin.right };
+    lastDraw = { bars };
     updateStats();
   }
 
@@ -380,10 +443,11 @@ License: MIT
     countRange.value = n;
     countNumber.value = n;
     refreshParameters(n);
-    updateCalculationPrecision();
+    syncPrecisionControl();
     currentDistribution = calculateDistribution(n);
     phenotypeGenotypeCounts = calculatePhenotypeGenotypeCounts(n);
     possiblePhenotypeCount = calculatePhenotypeCount(n);
+    displayCache = null;
     const equalEffect = TOTAL_EFFECT / n;
     effectsList.innerHTML = '';
     for (let i = 0; i < n; i += 1) {
@@ -403,19 +467,25 @@ License: MIT
   countRange.addEventListener('input', syncFromRange);
   countNumber.addEventListener('input', syncFromNumber);
   randomFrequencies.addEventListener('change', () => { settingsKey = ''; render(); });
-  randomEffects.addEventListener('change', () => { settingsKey = ''; render(); });
-  precisionSelect.addEventListener('change', render);
+  randomEffects.addEventListener('change', () => {
+    if (randomEffects.checked) precisionSelect.value = lastRandomEffectPrecision;
+    settingsKey = '';
+    render();
+  });
+  precisionSelect.addEventListener('change', () => {
+    if (!randomEffects.checked) return;
+    lastRandomEffectPrecision = precisionSelect.value;
+    hoverIndex = null;
+    displayCache = null;
+    draw();
+  });
   regenBtn.addEventListener('click', () => { settingsKey = ''; render(); });
   canvas.addEventListener('mousemove', (event) => {
     if (!lastDraw) return;
     const x = event.clientX - canvas.getBoundingClientRect().left;
-    let closest = -1; let distance = Infinity;
-    lastDraw.sorted.forEach((item, index) => {
-      const itemDistance = Math.abs(x - lastDraw.xForHeight(item.height));
-      if (itemDistance < distance) { distance = itemDistance; closest = index; }
-    });
-    const next = distance <= Math.max(8, lastDraw.barWidth) ? closest : null;
-    if (next !== hoverIndex) { hoverIndex = next; draw(); }
+    const next = lastDraw.bars.findIndex((bar) => x >= bar.left && x < bar.right);
+    const nextIndex = next === -1 ? null : next;
+    if (nextIndex !== hoverIndex) { hoverIndex = nextIndex; draw(); }
   });
   canvas.addEventListener('mouseleave', () => { if (hoverIndex !== null) { hoverIndex = null; draw(); } });
   window.addEventListener('resize', draw);
