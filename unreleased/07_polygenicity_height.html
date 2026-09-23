@@ -16,14 +16,35 @@ License: MIT
   <link rel="stylesheet" href="styles.css" />
   <script src="sd.js"></script>
   <style>
-    .polygenicity-layout { display: grid; grid-template-columns: minmax(230px, 330px) minmax(0, 1fr); gap: 16px; }
-    .polygenicity-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; box-shadow: 0 2px 4px rgba(0,0,0,.03); }
+    .polygenicity-layout { display: grid; grid-template-columns: minmax(230px, 310px) minmax(0, 1fr); grid-template-areas: "card chart-title" "card chart"; column-gap: 10px; }
+    .polygenicity-card { grid-area: card; display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,.03); }
     .polygenicity-card h2 { margin-top: 0; }
     .check-label { display: flex; align-items: center; gap: 7px; margin: 10px 0; font-size: 14px; cursor: pointer; }
-    .effect-list { max-height: 420px; overflow-y: auto; margin: 12px 0 0; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .effect-list { flex: 1 1 0; min-height: 0; overflow-y: auto; margin: 12px 0 0; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.55; }
     .effect-list code { color: var(--fg); background: #f0f4ff; padding: 1px 4px; border-radius: 3px; }
-    .chart-title { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
-    @media (max-width: 800px) { .polygenicity-layout { grid-template-columns: minmax(0, 1fr); } }
+    .chart-title { grid-area: chart-title; margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+    .polygenicity-layout > .canvas-frame { grid-area: chart; }
+    .chart-hover-label {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 18px;
+      padding: 8px 12px 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+      text-align: left;
+    }
+    .chart-hover-field { display: grid; grid-template-columns: var(--label-width) minmax(0, 1fr); flex: 0 1 var(--field-width); column-gap: 5px; }
+    .chart-hover-field--height { --label-width: 35px; --field-width: 110px; }
+    .chart-hover-field--probability { --label-width: 85px; --field-width: 170px; }
+    .chart-hover-field--genotypes { --label-width: 170px; --field-width: 310px; }
+    .chart-hover-field strong { color: var(--fg); }
+    @media (max-width: 800px) {
+      .polygenicity-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "card" "chart-title" "chart"; row-gap: 10px; }
+      .polygenicity-card { display: block; overflow: visible; }
+      .effect-list { max-height: 360px; }
+    }
   </style>
 </head>
 <body>
@@ -38,7 +59,7 @@ License: MIT
     </label>
     <label class="check-label"><input id="randomFrequencies" type="checkbox" /> Случайные частоты аллелей</label> |
     <label class="check-label"><input id="randomEffects" type="checkbox" /> Случайные эффекты аллелей |</label>
-    <label class="mut-label">Точность отображения:
+    <label class="mut-label">Точность:
       <select id="precisionSelect">
         <option value="1" selected>1 см</option>
         <option value="10">0,1 см</option>
@@ -55,10 +76,15 @@ License: MIT
       <h2>Эффекты и частоты вторых аллелей</h2>
       <ol id="effectsList" class="effect-list"></ol>
     </section>
-    <section>
-      <p class="chart-title">Распределение вероятностей роста</p>
-      <div class="canvas-frame"><canvas id="heightCanvas"></canvas></div>
-    </section>
+    <p class="chart-title">Распределение вероятностей роста</p>
+    <div class="canvas-frame">
+      <div class="chart-hover-label">
+        <span class="chart-hover-field chart-hover-field--height"><span>Рост:</span><strong id="hoverHeight">—</strong></span>
+        <span class="chart-hover-field chart-hover-field--probability"><span>Вероятность:</span><strong id="hoverProbability">—</strong></span>
+        <span class="chart-hover-field chart-hover-field--genotypes"><span>Генотипов с этим ростом:</span><strong id="hoverGenotypes">—</strong></span>
+      </div>
+      <canvas id="heightCanvas"></canvas>
+    </div>
   </div>
 </div>
 
@@ -90,6 +116,9 @@ License: MIT
   const effectsList = document.getElementById('effectsList');
   const canvas = document.getElementById('heightCanvas');
   const ctx = canvas.getContext('2d');
+  const hoverHeight = document.getElementById('hoverHeight');
+  const hoverProbability = document.getElementById('hoverProbability');
+  const hoverGenotypes = document.getElementById('hoverGenotypes');
 
   let settingsKey = '';
   let frequencies = [];
@@ -101,11 +130,11 @@ License: MIT
   let displayCache = null;
   let lastDraw = null;
   let hoverIndex = null;
+  let hoverX = null;
 
   introText.innerHTML =
     `Начальный рост — <strong>${MIN_HEIGHT} см</strong>. Каждый локус имеет два аллеля: ` +
-    `один ничего не добавляет, другой увеличивает рост. В этой модели рост лежит в диапазоне ` +
-    `<strong>${MIN_HEIGHT}–${MAX_HEIGHT} см</strong>.`;
+    `один ничего не добавляет, другой увеличивает рост.`;
 
   function clampCount(value) {
     const parsed = Math.round(Number(value));
@@ -264,17 +293,10 @@ License: MIT
     const n = clampCount(countRange.value);
     const genotypeCount = formatBigIntCount(2n ** BigInt(n));
     const mean = currentDistribution.reduce((sum, item) => sum + item.height * item.probability, 0);
-    const hovered = hoverIndex === null ? null : lastDraw?.bars[hoverIndex];
-    const valueText = hovered ? hovered.label : '—';
-    const probabilityText = hovered ? formatPercent(hovered.probability) : '—';
-    const matchingGenotypes = hovered ? formatBigIntCount(hovered.genotypes) : '—';
     statsLine.innerHTML =
       `Кол-во генотипов: <span class="value-strong">${genotypeCount}</span>` +
       ` | Кол-во фенотипов: <span class="value-strong">${possiblePhenotypeCount.toLocaleString('ru-RU')}</span>` +
-      ` | Средний рост: <span class="value-strong">${formatHeight(mean)} см</span>` +
-      ` | Рост: <span class="value-strong">${valueText}</span>` +
-      ` | Вероятность: <span class="value-strong">${probabilityText}</span>` +
-      ` | Генотипов с этим ростом: <span class="value-strong">${matchingGenotypes}</span>`;
+      ` | Средний рост: <span class="value-strong">${formatHeight(mean)} см</span>`;
   }
 
   function formatBigIntCount(value) {
@@ -353,12 +375,13 @@ License: MIT
     const minGapUnits = !randomEffects.checked && currentDistribution.length > 1
       ? Math.min(...currentDistribution.slice(1).map((item, i) => item.units - currentDistribution[i].units))
       : TOTAL_EFFECT * SOURCE_EFFECT_UNITS_PER_CM;
+    const oneCmFixedBars = !randomEffects.checked && minGapUnits >= SOURCE_EFFECT_UNITS_PER_CM;
     const barWidthCm = !randomEffects.checked
       ? Math.min(1, minGapUnits / SOURCE_EFFECT_UNITS_PER_CM) * 0.9
       : (stepUnits / SOURCE_EFFECT_UNITS_PER_CM) * (precision === 1 ? 0.9 : 1);
     const formatUnit = (units) => (BASE_HEIGHT + units / SOURCE_EFFECT_UNITS_PER_CM)
       .toFixed(decimals).replace('.', ',');
-    return bins.sort((a, b) => a.index - b.index).map((bin) => {
+    const bars = bins.sort((a, b) => a.index - b.index).map((bin) => {
       let left;
       let right;
       if (pixelBins) {
@@ -370,29 +393,48 @@ License: MIT
         right = Math.round(xForHeight(BASE_HEIGHT + (bin.index + 0.5) * stepUnits / SOURCE_EFFECT_UNITS_PER_CM) * dpr) / dpr;
       } else {
         const center = BASE_HEIGHT + bin.centerUnits / SOURCE_EFFECT_UNITS_PER_CM;
-        left = xForHeight(center - barWidthCm / 2);
-        right = xForHeight(center + barWidthCm / 2);
+        const visualCenter = center + (oneCmFixedBars ? 0.5 : 0);
+        left = xForHeight(visualCenter - barWidthCm / 2);
+        right = xForHeight(visualCenter + barWidthCm / 2);
       }
       return { ...bin, left, right, label: `${formatUnit(pixelBins ? bin.minUnits : bin.centerUnits)} см`,
         approximate: pixelBins };
+    });
+    const centers = bars.map((bar) => pixelBins
+      ? (bar.left + bar.right) / 2
+      : xForHeight(BASE_HEIGHT + bar.centerUnits / SOURCE_EFFECT_UNITS_PER_CM));
+    const halfCm = xForHeight(BASE_HEIGHT + 0.5) - xForHeight(BASE_HEIGHT);
+    return bars.map((bar, index) => {
+      const center = centers[index];
+      if (oneCmFixedBars) {
+        const height = BASE_HEIGHT + bar.centerUnits / SOURCE_EFFECT_UNITS_PER_CM;
+        return { ...bar, hoverLeft: xForHeight(height), hoverRight: xForHeight(height + 1) };
+      }
+      const radius = Math.max(halfCm, (bar.right - bar.left) / 2);
+      const leftMidpoint = index > 0 ? (centers[index - 1] + center) / 2 : -Infinity;
+      const rightMidpoint = index + 1 < bars.length ? (center + centers[index + 1]) / 2 : Infinity;
+      // Keep a shared midpoint when the half-centimeter limit only differs by floating-point noise.
+      return { ...bar,
+        hoverLeft: leftMidpoint >= center - radius - 1e-9 ? leftMidpoint : center - radius,
+        hoverRight: rightMidpoint <= center + radius + 1e-9 ? rightMidpoint : center + radius };
     });
   }
 
   function draw() {
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
-    const height = Math.max(310, Math.min(window.innerHeight * 0.62, 520));
+    const height = Math.max(310, Math.min(window.innerHeight * 0.60, 520));
     canvas.style.height = `${height}px`;
     canvas.width = Math.floor(displayWidth * dpr);
     canvas.height = Math.floor(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, displayWidth, height);
 
-    const margin = { left: 64, right: 16, top: 18, bottom: 52 };
+    const margin = { left: 64, right: 16, top: 12, bottom: 32 };
     const innerWidth = displayWidth - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
     const xMinEdge = BASE_HEIGHT - 0.5;
-    const xMaxEdge = BASE_HEIGHT + TOTAL_EFFECT + 0.5;
+    const xMaxEdge = BASE_HEIGHT + TOTAL_EFFECT + (!randomEffects.checked && clampCount(countRange.value) <= TOTAL_EFFECT ? 1 : 0.5);
     const xRange = xMaxEdge - xMinEdge;
     const xForHeight = (heightCm) => margin.left + ((heightCm - xMinEdge) / xRange) * innerWidth;
     const precision = Number(precisionSelect.value);
@@ -421,6 +463,28 @@ License: MIT
       ctx.fillRect(bar.left, margin.top + innerHeight - barHeight, bar.right - bar.left, barHeight);
     });
 
+    if (hoverX !== null) {
+      const hovered = hoverIndex === null ? null : bars[hoverIndex];
+      const heightUnderPointer = xMinEdge + ((hoverX - margin.left) / innerWidth) * xRange;
+      const gridUnits = Number(precisionSelect.value);
+      const displayUnits = Math.round((heightUnderPointer - BASE_HEIGHT) * gridUnits);
+      const fallbackHeight = (BASE_HEIGHT + displayUnits / gridUnits)
+        .toFixed(Math.round(Math.log10(gridUnits))).replace('.', ',');
+      hoverHeight.textContent = hovered?.label ?? `${fallbackHeight} см`;
+      hoverProbability.textContent = formatPercent(hovered?.probability ?? 0);
+      hoverGenotypes.textContent = hovered ? formatBigIntCount(hovered.genotypes) : 'не встречается';
+      ctx.strokeStyle = '#344054';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(hoverX, margin.top);
+      ctx.lineTo(hoverX, margin.top + innerHeight);
+      ctx.stroke();
+    } else {
+      hoverHeight.textContent = '—';
+      hoverProbability.textContent = '—';
+      hoverGenotypes.textContent = '—';
+    }
+
     ctx.strokeStyle = '#999';
     ctx.beginPath(); ctx.moveTo(margin.left, margin.top + innerHeight); ctx.lineTo(margin.left + innerWidth, margin.top + innerHeight); ctx.stroke();
     const labels = generateXTicks({ min: BASE_HEIGHT, max: BASE_HEIGHT + TOTAL_EFFECT }, innerWidth);
@@ -434,7 +498,8 @@ License: MIT
       ctx.fillText(text, x, margin.top + innerHeight + 7);
     });
     ctx.save(); ctx.translate(11, margin.top + innerHeight / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('Вероятность', 0, 0); ctx.restore();
-    lastDraw = { bars };
+    lastDraw = { bars, plotLeft: margin.left, plotRight: margin.left + innerWidth,
+      plotTop: margin.top, plotBottom: margin.top + innerHeight };
     updateStats();
   }
 
@@ -459,6 +524,7 @@ License: MIT
       effectsList.appendChild(li);
     }
     hoverIndex = null;
+    hoverX = null;
     draw();
   }
 
@@ -476,19 +542,31 @@ License: MIT
     if (!randomEffects.checked) return;
     lastRandomEffectPrecision = precisionSelect.value;
     hoverIndex = null;
+    hoverX = null;
     displayCache = null;
     draw();
   });
   regenBtn.addEventListener('click', () => { settingsKey = ''; render(); });
   canvas.addEventListener('mousemove', (event) => {
     if (!lastDraw) return;
-    const x = event.clientX - canvas.getBoundingClientRect().left;
-    const next = lastDraw.bars.findIndex((bar) => x >= bar.left && x < bar.right);
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const insidePlot = x >= lastDraw.plotLeft && x <= lastDraw.plotRight &&
+      y >= lastDraw.plotTop && y <= lastDraw.plotBottom;
+    const next = insidePlot ? lastDraw.bars.findIndex((bar) => x >= bar.hoverLeft && x < bar.hoverRight) : -1;
     const nextIndex = next === -1 ? null : next;
-    if (nextIndex !== hoverIndex) { hoverIndex = nextIndex; draw(); }
+    const nextX = insidePlot ? x : null;
+    if (nextIndex !== hoverIndex || nextX !== hoverX) {
+      hoverIndex = nextIndex;
+      hoverX = nextX;
+      draw();
+    }
   });
-  canvas.addEventListener('mouseleave', () => { if (hoverIndex !== null) { hoverIndex = null; draw(); } });
-  window.addEventListener('resize', draw);
+  canvas.addEventListener('mouseleave', () => {
+    if (hoverX !== null) { hoverIndex = null; hoverX = null; draw(); }
+  });
+  window.addEventListener('resize', () => { hoverIndex = null; hoverX = null; draw(); });
   render();
 </script>
 </body>
