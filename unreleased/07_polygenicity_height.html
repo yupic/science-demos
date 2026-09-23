@@ -32,7 +32,7 @@ License: MIT
   <p id="introText" class="desc"></p>
 
   <div class="controls">
-    <label class="slider-label">Количество локусов:
+    <label class="slider-label">Кол-во локусов:
       <input id="variantCount" type="range" min="1" max="300" value="1" style="width: 100px;" />
       <input id="variantNumber" type="number" min="1" max="300" value="1" style="width: 60px;" />
     </label>
@@ -290,8 +290,8 @@ License: MIT
     const probabilityText = hovered ? formatPercent(hovered.probability) : '—';
     const matchingGenotypes = hovered ? formatBigIntCount(phenotypeGenotypeCounts[hovered.units]) : '—';
     statsLine.innerHTML =
-      `Количество генотипов: <span class="value-strong">${genotypeCount}</span>` +
-      ` | Количество фенотипов: <span class="value-strong">${possiblePhenotypeCount.toLocaleString('ru-RU')}</span>` +
+      `Кол-во генотипов: <span class="value-strong">${genotypeCount}</span>` +
+      ` | Кол-во фенотипов: <span class="value-strong">${possiblePhenotypeCount.toLocaleString('ru-RU')}</span>` +
       ` | Средний рост: <span class="value-strong">${formatHeight(mean)} см</span>` +
       ` | Рост: <span class="value-strong">${valueText}</span>` +
       ` | Вероятность: <span class="value-strong">${probabilityText}</span>` +
