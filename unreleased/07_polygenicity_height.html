@@ -13,9 +13,13 @@ License: MIT
   <meta charset="utf-8" />
   <title>Полигенность: рост</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    if (window.self !== window.top) document.documentElement.classList.add('in-iframe');
+  </script>
   <link rel="stylesheet" href="styles.css" />
   <script src="sd.js"></script>
   <style>
+    html.in-iframe .container > h1, html.in-iframe #introText, html.in-iframe footer { display: none; }
     .polygenicity-layout { display: grid; grid-template-columns: minmax(230px, 310px) minmax(0, 1fr); grid-template-areas: "card chart-title" "card chart"; column-gap: 10px; }
     .polygenicity-card { grid-area: card; display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,.03); }
     .polygenicity-card h2 { margin-top: 0; }
