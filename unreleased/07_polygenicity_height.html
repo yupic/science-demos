@@ -20,12 +20,14 @@ License: MIT
   <script src="sd.js"></script>
   <style>
     html.in-iframe .container > h1, html.in-iframe #introText, html.in-iframe footer { display: none; }
-    .polygenicity-layout { display: grid; grid-template-columns: minmax(230px, 310px) minmax(0, 1fr); grid-template-areas: "card chart-title" "card chart"; column-gap: 10px; }
+    .polygenicity-layout { display: grid; grid-template-columns: minmax(180px, 200px) minmax(0, 1fr); grid-template-areas: "card chart-title" "card chart"; column-gap: 10px; }
     .polygenicity-card { grid-area: card; display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,.03); }
     .polygenicity-card h2 { margin-top: 0; }
     .check-label { display: flex; align-items: center; gap: 7px; margin: 10px 0; font-size: 14px; cursor: pointer; }
-    .effect-list { flex: 1 1 0; min-height: 0; overflow-y: auto; margin: 12px 0 0; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.55; }
-    .effect-list code { color: var(--fg); background: #f0f4ff; padding: 1px 4px; border-radius: 3px; }
+    .effect-table-wrap { flex: 1 1 0; min-height: 0; overflow-y: auto; margin-top: 8px; }
+    .effect-table { width: 100%; border-collapse: collapse; color: var(--muted); font-size: 13px; line-height: 1.45; font-variant-numeric: tabular-nums; table-layout: fixed; }
+    .effect-table th, .effect-table td { padding: 3px 2px; text-align: right; white-space: nowrap; }
+    .effect-table th { position: sticky; top: 0; z-index: 1; background: var(--card); border-bottom: 1px solid var(--border); color: var(--fg); }
     .chart-title { grid-area: chart-title; margin: 0 0 6px; font-size: 15px; font-weight: 600; }
     .polygenicity-layout > .canvas-frame { grid-area: chart; }
     .chart-hover-label {
@@ -47,7 +49,7 @@ License: MIT
     @media (max-width: 800px) {
       .polygenicity-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "card" "chart-title" "chart"; row-gap: 10px; }
       .polygenicity-card { display: block; overflow: visible; }
-      .effect-list { max-height: 360px; }
+      .effect-table-wrap { max-height: 360px; }
     }
   </style>
 </head>
@@ -78,7 +80,17 @@ License: MIT
   <div class="polygenicity-layout">
     <section class="polygenicity-card">
       <h2>Эффекты и частоты вторых аллелей</h2>
-      <ol id="effectsList" class="effect-list"></ol>
+      <div class="effect-table-wrap">
+        <table class="effect-table">
+          <colgroup>
+            <col style="width: 24%">
+            <col style="width: 38%">
+            <col style="width: 38%">
+          </colgroup>
+          <thead><tr><th scope="col">Локус</th><th scope="col">Эффект</th><th scope="col">Частота</th></tr></thead>
+          <tbody id="effectsTableBody"></tbody>
+        </table>
+      </div>
     </section>
     <p class="chart-title">Распределение вероятностей роста</p>
     <div class="canvas-frame">
@@ -117,7 +129,7 @@ License: MIT
   const regenBtn = document.getElementById('regenBtn');
   const statsLine = document.getElementById('statsLine');
   const introText = document.getElementById('introText');
-  const effectsList = document.getElementById('effectsList');
+  const effectsTableBody = document.getElementById('effectsTableBody');
   const canvas = document.getElementById('heightCanvas');
   const ctx = canvas.getContext('2d');
   const hoverHeight = document.getElementById('hoverHeight');
@@ -520,14 +532,14 @@ License: MIT
     possiblePhenotypeCount = calculatePhenotypeCount(n);
     displayCache = null;
     const equalEffect = TOTAL_EFFECT / n;
-    effectsList.innerHTML = '';
+    effectsTableBody.innerHTML = '';
     for (let i = 0; i < n; i += 1) {
-      const li = document.createElement('li');
+      const row = document.createElement('tr');
       const probability = frequencies[i];
       const sourceEffect = randomEffects.checked ? rawEffectUnits[i] / SOURCE_EFFECT_UNITS_PER_CM : equalEffect;
       const effectText = randomEffects.checked ? `+${sourceEffect.toFixed(2).replace('.', ',')}` : `+${formatCm(sourceEffect)}`;
-      li.innerHTML = `Локус ${i + 1}: <code>${effectText} см</code>, частота <code>${formatPercent(probability)}</code>`;
-      effectsList.appendChild(li);
+      row.innerHTML = `<td>${i + 1}</td><td>${effectText} см</td><td>${formatPercent(probability)}</td>`;
+      effectsTableBody.appendChild(row);
     }
     hoverIndex = null;
     hoverX = null;
