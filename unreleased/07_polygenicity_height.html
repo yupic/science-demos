@@ -425,9 +425,12 @@ License: MIT
   }
 
   function draw() {
+    updateStats();
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 600;
-    const height = Math.max(310, Math.min(window.innerHeight * 0.60, 520));
+    const height = window.self !== window.top
+      ? Math.max(310, Math.min(760, Math.floor(window.innerHeight - canvas.getBoundingClientRect().top - (window.scrollY || 0) - 12)))
+      : Math.max(310, Math.min(window.innerHeight * 0.60, 520));
     canvas.style.height = `${height}px`;
     canvas.width = Math.floor(displayWidth * dpr);
     canvas.height = Math.floor(height * dpr);
@@ -504,7 +507,6 @@ License: MIT
     ctx.save(); ctx.translate(11, margin.top + innerHeight / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('Вероятность', 0, 0); ctx.restore();
     lastDraw = { bars, plotLeft: margin.left, plotRight: margin.left + innerWidth,
       plotTop: margin.top, plotBottom: margin.top + innerHeight };
-    updateStats();
   }
 
   function render() {
